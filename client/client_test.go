@@ -11,32 +11,9 @@ import (
 	"github.com/Xavier-Lam/go-wechat"
 	"github.com/Xavier-Lam/go-wechat/caches"
 	"github.com/Xavier-Lam/go-wechat/client"
+	"github.com/Xavier-Lam/go-wechat/internal/test"
 	"github.com/stretchr/testify/assert"
 )
-
-func assertEndpointEqual(t *testing.T, expected string, actual *url.URL) {
-	uri, err := url.Parse(expected)
-	assert.NoError(t, err)
-	assert.Equal(t, uri.Scheme, actual.Scheme)
-	assert.Equal(t, uri.Host, actual.Host)
-	assert.Equal(t, uri.Path, actual.Path)
-}
-
-type RequestHandler func(req *http.Request, calls int) (*http.Response, error)
-
-type mockHttpClient struct {
-	calls   int
-	handler RequestHandler
-}
-
-func newMockHttpClient(handler RequestHandler) client.HttpClient {
-	return &mockHttpClient{handler: handler}
-}
-
-func (c *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
-	c.calls++
-	return c.handler(req, c.calls)
-}
 
 type mockAccessTokenClient struct {
 	token string
@@ -54,17 +31,6 @@ var (
 	emptyResponse = httptest.NewRecorder().Result()
 )
 
-func createEmptyResponse() (*http.Response, error) {
-	return emptyResponse, nil
-}
-
-func createJsonResponse(json string) (*http.Response, error) {
-	recorder := httptest.NewRecorder()
-	recorder.Header().Add("Content-Type", "application/json")
-	recorder.WriteString(json)
-	return recorder.Result(), nil
-}
-
 var (
 	appID     = "mock-app-id"
 	appSecret = "mock-app-secret"
@@ -73,12 +39,12 @@ var (
 
 func TestWeChatClientGet(t *testing.T) {
 	url := "https://api.weixin.qq.com/some-endpoint?a=1"
-	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, "GET", req.Method)
 		assert.Equal(t, url, req.URL.String())
 
-		return createEmptyResponse()
+		return test.Responses.Empty()
 	})
 
 	config := &client.Config{HttpClient: mc}
@@ -95,7 +61,7 @@ func TestWeChatClientPost(t *testing.T) {
 		"key1": "value1",
 		"key2": "value2",
 	}
-	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, "POST", req.Method)
 		assert.Equal(t, url, req.URL.String())
@@ -116,7 +82,7 @@ func TestWeChatClientPost(t *testing.T) {
 
 		assert.Equal(t, expectedBody, bytes.NewReader(buffer))
 
-		return createEmptyResponse()
+		return test.Responses.Empty()
 	})
 
 	config := &client.Config{HttpClient: mc}
@@ -130,12 +96,12 @@ func TestWeChatClientPost(t *testing.T) {
 func TestWeChatClientDo(t *testing.T) {
 	expectedUrl := "https://api.weixin.qq.com/some-endpoint?a=1"
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
-	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, expectedReq.URL.String(), req.URL.String())
 		assert.Equal(t, expectedReq.Method, req.Method)
 
-		return createEmptyResponse()
+		return test.Responses.Empty()
 	})
 
 	config := &client.Config{HttpClient: mc}
@@ -150,12 +116,12 @@ func TestWeChatClientDo(t *testing.T) {
 	expectedFullUrl := "https://example.com/some-endpoint"
 	expectedRelativeUrl := "/some-endpoint"
 	expectedReq, _ = http.NewRequest("GET", expectedRelativeUrl, nil)
-	mc = newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc = test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, expectedFullUrl, req.URL.String())
 		assert.Equal(t, expectedReq.Method, req.Method)
 
-		return createEmptyResponse()
+		return test.Responses.Empty()
 	})
 
 	config = &client.Config{
@@ -170,12 +136,12 @@ func TestWeChatClientDo(t *testing.T) {
 
 	// default base url, relative url
 	expectedReq, _ = http.NewRequest("GET", expectedUrl, nil)
-	mc = newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc = test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, expectedUrl, req.URL.String())
 		assert.Equal(t, expectedReq.Method, req.Method)
 
-		return createEmptyResponse()
+		return test.Responses.Empty()
 	})
 
 	config = &client.Config{
@@ -194,13 +160,13 @@ func TestWeChatClientWithToken(t *testing.T) {
 
 	expectedUrl := "https://api.weixin.qq.com/some-endpoint"
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
-	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, expectedReq.Method, req.Method)
-		assertEndpointEqual(t, expectedUrl, req.URL)
+		test.AssertEndpointEqual(t, expectedUrl, req.URL)
 		assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
 
-		return createEmptyResponse()
+		return test.Responses.Empty()
 	})
 
 	cache := caches.NewDummyCache()
@@ -221,13 +187,13 @@ func TestWeChatClientDoWithoutToken(t *testing.T) {
 
 	expectedUrl := "https://api.weixin.qq.com/some-endpoint"
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
-	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, expectedReq.Method, req.Method)
-		assertEndpointEqual(t, expectedUrl, req.URL)
+		test.AssertEndpointEqual(t, expectedUrl, req.URL)
 		assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
 
-		return createEmptyResponse()
+		return test.Responses.Empty()
 	})
 
 	akc := newMockAccessTokenClient(accessToken)
@@ -253,19 +219,19 @@ func TestWeChatClientDoWithInvalidToken(t *testing.T) {
 
 	expectedUrl := "https://api.weixin.qq.com/some-endpoint"
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
-	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		if calls == 1 {
 			assert.Equal(t, expectedReq.Method, req.Method)
-			assertEndpointEqual(t, expectedUrl, req.URL)
+			test.AssertEndpointEqual(t, expectedUrl, req.URL)
 			assert.Equal(t, invalidToken, req.URL.Query().Get("access_token"))
 
-			return createJsonResponse(`{"errcode": 40014, "errmsg": "Invalid access token"}`)
+			return test.Responses.Json(`{"errcode": 40014, "errmsg": "Invalid access token"}`)
 		} else if calls == 2 {
 			assert.Equal(t, expectedReq.Method, req.Method)
-			assertEndpointEqual(t, expectedUrl, req.URL)
+			test.AssertEndpointEqual(t, expectedUrl, req.URL)
 			assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
 
-			return createEmptyResponse()
+			return test.Responses.Empty()
 		} else {
 			assert.Fail(t, "Unexpected calls")
 			return nil, nil
@@ -295,21 +261,21 @@ func TestWeChatClientDoWithInvalidTokenAndInvalidCredential(t *testing.T) {
 
 	expectedUrl := "https://api.weixin.qq.com/some-endpoint"
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
-	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
+	mc := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		if calls == 1 {
 			assert.Equal(t, expectedReq.Method, req.Method)
-			assertEndpointEqual(t, expectedUrl, req.URL)
+			test.AssertEndpointEqual(t, expectedUrl, req.URL)
 			assert.Equal(t, invalidToken, req.URL.Query().Get("access_token"))
 
-			return createJsonResponse(`{"errcode": 40014, "errmsg": "Invalid access token"}`)
+			return test.Responses.Json(`{"errcode": 40014, "errmsg": "Invalid access token"}`)
 		} else if calls == 2 {
 			assert.Equal(t, "GET", req.Method)
-			assertEndpointEqual(t, client.DefaultAccessTokenUri, req.URL)
+			test.AssertEndpointEqual(t, client.DefaultAccessTokenUri, req.URL)
 			assert.Equal(t, "client_credential", req.URL.Query().Get("grant_type"))
 			assert.Equal(t, appID, req.URL.Query().Get("appid"))
 			assert.Equal(t, appSecret, req.URL.Query().Get("secret"))
 
-			return createJsonResponse(`{"errcode": 40125, "errmsg": "invalid appsecret"}`)
+			return test.Responses.Json(`{"errcode": 40125, "errmsg": "invalid appsecret"}`)
 		} else {
 			assert.Fail(t, "Unexpected calls")
 			return nil, nil

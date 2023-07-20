@@ -1,5 +1,7 @@
 # go-wechat
 
+[![Build Status](https://github.com/Xavier-Lam/go-wechat/actions/workflows/ci.yml/badge.svg)]((https://github.com/Xavier-Lam/go-wechat/actions?query=workflows%3ACI))
+[![Coverage Status](https://codecov.io/gh/Xavier-Lam/go-wechat/branch/master/graph/badge.svg)](https://codecov.io/gh/Xavier-Lam/go-wechat)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Xavier-Lam/go-wechat)](https://goreportcard.com/report/github.com/Xavier-Lam/go-wechat)
 
 **go-wechat** is a Go package that provides a client for interacting with the WeChat API. It allows you to send API requests to WeChat and handle the response. Currently, it supports only API requests for [Official account](https://developers.weixin.qq.com/doc/offiaccount/Getting_Started/Overview.html) and [Mini program](https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/).

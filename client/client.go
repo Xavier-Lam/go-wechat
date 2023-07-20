@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Xavier-Lam/go-wechat"
+	"github.com/Xavier-Lam/go-wechat/caches"
 )
 
 type HttpClient interface {
@@ -18,10 +19,10 @@ type HttpClient interface {
 }
 
 type Config struct {
-	HttpClient     HttpClient // Default Http client to send request
-	Cache          Cache      // Cache instance for managing tokens
-	AccessTokenUri *url.URL   // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
-	BaseApiUri     *url.URL   // The endpoint to request an API, if full path is not given, default value is 'https://api.weixin.qq.com'
+	HttpClient     HttpClient   // Default Http client to send request
+	Cache          caches.Cache // Cache instance for managing tokens
+	AccessTokenUri *url.URL     // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
+	BaseApiUri     *url.URL     // The endpoint to request an API, if full path is not given, default value is 'https://api.weixin.qq.com'
 }
 
 const (
@@ -74,7 +75,7 @@ type weChatClient struct {
 	akc     AccessTokenClient
 	auth    wechat.Auth
 	baseUri *url.URL
-	cache   Cache
+	cache   caches.Cache
 	http    HttpClient
 }
 
