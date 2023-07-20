@@ -17,9 +17,7 @@ func TestTokenGetAccessToken(t *testing.T) {
 	httpClient := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, "GET", req.Method)
-		assert.Equal(t, "https", req.URL.Scheme)
-		assert.Equal(t, "api.weixin.qq.com", req.URL.Host)
-		assert.Equal(t, "/cgi-bin/token", req.URL.Path)
+		assertEndpointEqual(t, client.DefaultAccessTokenUri, req.URL)
 		assert.Equal(t, "client_credential", req.URL.Query().Get("grant_type"))
 		assert.Equal(t, "app-id", req.URL.Query().Get("appid"))
 		assert.Equal(t, "app-secret", req.URL.Query().Get("secret"))

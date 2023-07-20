@@ -47,7 +47,7 @@ func (t *token) GetAccessToken() string {
 }
 
 func (t *token) GetExpiresIn() int {
-	timeDiff := time.Now().Sub(t.createdAt)
+	timeDiff := time.Since(t.createdAt)
 	timeEscaped := int(timeDiff.Seconds())
 	if timeEscaped >= t.expiresIn {
 		return 0

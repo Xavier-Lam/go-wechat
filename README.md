@@ -1,5 +1,7 @@
 # go-wechat
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/Xavier-Lam/go-wechat)](https://goreportcard.com/report/github.com/Xavier-Lam/go-wechat)
+
 **go-wechat** 是一个Go拓展，提供了一个用于与微信API进行交互的客户端。它允许您向微信发送API请求并处理响应。目前支持[公众号](https://developers.weixin.qq.com/doc/offiaccount/Getting_Started/Overview.html)和[小程序](https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/).
 
 **[English Readme](README.en.md)**

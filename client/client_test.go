@@ -14,6 +14,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func assertEndpointEqual(t *testing.T, expected string, actual *url.URL) {
+	uri, err := url.Parse(expected)
+	assert.NoError(t, err)
+	assert.Equal(t, uri.Scheme, actual.Scheme)
+	assert.Equal(t, uri.Host, actual.Host)
+	assert.Equal(t, uri.Path, actual.Path)
+}
+
 type RequestHandler func(req *http.Request, calls int) (*http.Response, error)
 
 type mockHttpClient struct {
@@ -120,7 +128,7 @@ func TestWeChatClientPost(t *testing.T) {
 }
 
 func TestWeChatClientDo(t *testing.T) {
-	expectedUrl := "https://api.weixin.qq.com/some-endpoint"
+	expectedUrl := "https://api.weixin.qq.com/some-endpoint?a=1"
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
 	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
@@ -188,8 +196,8 @@ func TestWeChatClientWithToken(t *testing.T) {
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
 	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
-		assert.Equal(t, expectedReq.URL.String(), req.URL.String())
 		assert.Equal(t, expectedReq.Method, req.Method)
+		assertEndpointEqual(t, expectedUrl, req.URL)
 		assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
 
 		return createEmptyResponse()
@@ -215,8 +223,8 @@ func TestWeChatClientDoWithoutToken(t *testing.T) {
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
 	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
-		assert.Equal(t, expectedReq.URL.String(), req.URL.String())
 		assert.Equal(t, expectedReq.Method, req.Method)
+		assertEndpointEqual(t, expectedUrl, req.URL)
 		assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
 
 		return createEmptyResponse()
@@ -247,14 +255,14 @@ func TestWeChatClientDoWithInvalidToken(t *testing.T) {
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
 	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		if calls == 1 {
-			assert.Equal(t, expectedReq.URL.String(), req.URL.String())
 			assert.Equal(t, expectedReq.Method, req.Method)
+			assertEndpointEqual(t, expectedUrl, req.URL)
 			assert.Equal(t, invalidToken, req.URL.Query().Get("access_token"))
 
 			return createJsonResponse(`{"errcode": 40014, "errmsg": "Invalid access token"}`)
 		} else if calls == 2 {
-			assert.Equal(t, expectedReq.URL.String(), req.URL.String())
 			assert.Equal(t, expectedReq.Method, req.Method)
+			assertEndpointEqual(t, expectedUrl, req.URL)
 			assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
 
 			return createEmptyResponse()
@@ -289,16 +297,14 @@ func TestWeChatClientDoWithInvalidTokenAndInvalidCredential(t *testing.T) {
 	expectedReq, _ := http.NewRequest("GET", expectedUrl, nil)
 	mc := newMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		if calls == 1 {
-			assert.Equal(t, expectedReq.URL.String(), req.URL.String())
 			assert.Equal(t, expectedReq.Method, req.Method)
+			assertEndpointEqual(t, expectedUrl, req.URL)
 			assert.Equal(t, invalidToken, req.URL.Query().Get("access_token"))
 
 			return createJsonResponse(`{"errcode": 40014, "errmsg": "Invalid access token"}`)
 		} else if calls == 2 {
 			assert.Equal(t, "GET", req.Method)
-			assert.Equal(t, "https", req.URL.Scheme)
-			assert.Equal(t, "api.weixin.qq.com", req.URL.Host)
-			assert.Equal(t, "/cgi-bin/token", req.URL.Path)
+			assertEndpointEqual(t, client.DefaultAccessTokenUri, req.URL)
 			assert.Equal(t, "client_credential", req.URL.Query().Get("grant_type"))
 			assert.Equal(t, appID, req.URL.Query().Get("appid"))
 			assert.Equal(t, appSecret, req.URL.Query().Get("secret"))
