@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/Xavier-Lam/go-wechat"
 	"github.com/Xavier-Lam/go-wechat/client"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,6 +25,18 @@ func NewMockHttpClient(handler RequestHandler) client.HttpClient {
 func (c *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 	c.calls++
 	return c.handler(req, c.calls)
+}
+
+type mockAccessTokenClient struct {
+	token string
+}
+
+func NewMockAccessTokenClient(token string) client.AccessTokenClient {
+	return &mockAccessTokenClient{token: token}
+}
+
+func (c *mockAccessTokenClient) GetAccessToken(auth wechat.Auth) (*client.Token, error) {
+	return client.NewToken(c.token, client.DefaultTokenExpiresIn), nil
 }
 
 type responses struct{}

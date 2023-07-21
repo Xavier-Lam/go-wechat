@@ -15,18 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockAccessTokenClient struct {
-	token string
-}
-
-func newMockAccessTokenClient(token string) client.AccessTokenClient {
-	return &mockAccessTokenClient{token: token}
-}
-
-func (c *mockAccessTokenClient) GetAccessToken(auth wechat.Auth) (client.Token, error) {
-	return client.NewToken(c.token, client.DefaultTokenExpiresIn), nil
-}
-
 var (
 	emptyResponse = httptest.NewRecorder().Result()
 )
@@ -47,7 +35,7 @@ func TestWeChatClientGet(t *testing.T) {
 		return test.Responses.Empty()
 	})
 
-	config := &client.Config{HttpClient: mc}
+	config := client.Config{HttpClient: mc}
 	c := client.New(auth, config)
 
 	resp, err := c.Get(url, false)
@@ -85,7 +73,7 @@ func TestWeChatClientPost(t *testing.T) {
 		return test.Responses.Empty()
 	})
 
-	config := &client.Config{HttpClient: mc}
+	config := client.Config{HttpClient: mc}
 	c := client.New(auth, config)
 
 	resp, err := c.PostJson(url, data, false)
@@ -104,7 +92,7 @@ func TestWeChatClientDo(t *testing.T) {
 		return test.Responses.Empty()
 	})
 
-	config := &client.Config{HttpClient: mc}
+	config := client.Config{HttpClient: mc}
 	c := client.New(auth, config)
 
 	resp, err := c.Do(expectedReq, false)
@@ -124,7 +112,7 @@ func TestWeChatClientDo(t *testing.T) {
 		return test.Responses.Empty()
 	})
 
-	config = &client.Config{
+	config = client.Config{
 		HttpClient: mc,
 		BaseApiUri: expectedBaseUrl,
 	}
@@ -144,7 +132,7 @@ func TestWeChatClientDo(t *testing.T) {
 		return test.Responses.Empty()
 	})
 
-	config = &client.Config{
+	config = client.Config{
 		HttpClient: mc,
 		BaseApiUri: expectedBaseUrl,
 	}
@@ -170,8 +158,9 @@ func TestWeChatClientWithToken(t *testing.T) {
 	})
 
 	cache := caches.NewDummyCache()
-	cache.Set(appID, caches.CacheBizAccessToken, client.NewToken(accessToken, 3600), 3600)
-	config := &client.Config{
+	serializedToken, _ := client.SerializeToken(client.NewToken(accessToken, 3600))
+	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
+	config := client.Config{
 		HttpClient: mc,
 		Cache:      cache,
 	}
@@ -196,21 +185,24 @@ func TestWeChatClientDoWithoutToken(t *testing.T) {
 		return test.Responses.Empty()
 	})
 
-	akc := newMockAccessTokenClient(accessToken)
+	akc := test.NewMockAccessTokenClient(accessToken)
 	cache := caches.NewDummyCache()
-	config := &client.Config{
-		HttpClient: mc,
-		Cache:      cache,
+	config := client.Config{
+		AccessTokenClient: akc,
+		HttpClient:        mc,
+		Cache:             cache,
 	}
-	c := client.NewWithDependency(akc, auth, config)
+	c := client.New(auth, config)
 
 	resp, err := c.Do(expectedReq, true)
 	assert.NoError(t, err)
 	assert.Equal(t, emptyResponse, resp)
 
-	storedToken, err := cache.Get(appID, caches.CacheBizAccessToken)
+	storedToken, err := cache.Get(appID, caches.BizAccessToken)
 	assert.NoError(t, err)
-	assert.Equal(t, storedToken.(client.Token).GetAccessToken(), accessToken)
+	token, err := client.DeserializeToken(storedToken)
+	assert.NoError(t, err)
+	assert.Equal(t, token.GetAccessToken(), accessToken)
 }
 
 func TestWeChatClientDoWithInvalidToken(t *testing.T) {
@@ -238,22 +230,26 @@ func TestWeChatClientDoWithInvalidToken(t *testing.T) {
 		}
 	})
 
-	akc := newMockAccessTokenClient(accessToken)
+	akc := test.NewMockAccessTokenClient(accessToken)
 	cache := caches.NewDummyCache()
-	cache.Set(appID, caches.CacheBizAccessToken, client.NewToken(invalidToken, 3600), 3600)
-	config := &client.Config{
-		HttpClient: mc,
-		Cache:      cache,
+	serializedToken, _ := client.SerializeToken(client.NewToken(invalidToken, 3600))
+	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
+	config := client.Config{
+		AccessTokenClient: akc,
+		HttpClient:        mc,
+		Cache:             cache,
 	}
-	c := client.NewWithDependency(akc, auth, config)
+	c := client.New(auth, config)
 
 	resp, err := c.Do(expectedReq, true)
 	assert.NoError(t, err)
 	assert.Equal(t, emptyResponse, resp)
 
-	storedToken, err := cache.Get(appID, caches.CacheBizAccessToken)
+	storedToken, err := cache.Get(appID, caches.BizAccessToken)
 	assert.NoError(t, err)
-	assert.Equal(t, storedToken.(client.Token).GetAccessToken(), accessToken)
+	token, err := client.DeserializeToken(storedToken)
+	assert.NoError(t, err)
+	assert.Equal(t, token.GetAccessToken(), accessToken)
 }
 
 func TestWeChatClientDoWithInvalidTokenAndInvalidCredential(t *testing.T) {
@@ -283,8 +279,9 @@ func TestWeChatClientDoWithInvalidTokenAndInvalidCredential(t *testing.T) {
 	})
 
 	cache := caches.NewDummyCache()
-	cache.Set(appID, caches.CacheBizAccessToken, client.NewToken(invalidToken, 3600), 3600)
-	config := &client.Config{
+	serializedToken, _ := client.SerializeToken(client.NewToken(invalidToken, 3600))
+	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
+	config := client.Config{
 		HttpClient: mc,
 		Cache:      cache,
 	}
@@ -303,36 +300,43 @@ func TestWeChatClientGetAccessToken(t *testing.T) {
 	newToken := "token"
 
 	cache := caches.NewDummyCache()
-	config := &client.Config{Cache: cache}
-	akc := newMockAccessTokenClient(oldToken)
-	c := client.NewWithDependency(akc, auth, config)
+	akc := test.NewMockAccessTokenClient(oldToken)
+	config := client.Config{
+		AccessTokenClient: akc,
+		Cache:             cache,
+	}
+	c := client.New(auth, config)
 
 	token, err := c.GetAccessToken()
 	assert.NoError(t, err)
-	assert.Equal(t, token.GetAccessToken(), oldToken)
+	assert.Equal(t, oldToken, token.GetAccessToken())
 
 	token, err = c.GetAccessToken()
 	assert.NoError(t, err)
-	assert.Equal(t, token.GetAccessToken(), oldToken)
+	assert.Equal(t, oldToken, token.GetAccessToken())
 
-	akc = newMockAccessTokenClient(newToken)
-	c = client.NewWithDependency(akc, auth, config)
+	akc = test.NewMockAccessTokenClient(newToken)
+	config = client.Config{
+		AccessTokenClient: akc,
+		Cache:             cache,
+	}
+	c = client.New(auth, config)
 
 	token, err = c.GetAccessToken()
 	assert.NoError(t, err)
-	assert.Equal(t, token.GetAccessToken(), oldToken)
+	assert.Equal(t, oldToken, token.GetAccessToken())
 
 	token, err = c.FetchAccessToken()
 	assert.NoError(t, err)
-	assert.Equal(t, token.GetAccessToken(), newToken)
+	assert.Equal(t, newToken, token.GetAccessToken())
 
 	token, err = c.GetAccessToken()
 	assert.NoError(t, err)
-	assert.Equal(t, token.GetAccessToken(), newToken)
+	assert.Equal(t, newToken, token.GetAccessToken())
 }
 
 func TestWeChatClientGetAppId(t *testing.T) {
-	client := client.New(auth, nil)
+	client := client.New(auth, client.Config{})
 
 	result := client.GetAuth()
 	assert.Equal(t, appID, result.GetAppId())

@@ -16,7 +16,28 @@ Features:
 * Easy use and flexible APIs
 
 ## Quickstart
-* Basic usage
+* Call encapsulated Apis
+
+        package main
+
+        import (
+        	"encoding/json"
+
+            "github.com/Xavier-Lam/go-wechat"
+            "github.com/Xavier-Lam/go-wechat/caches"
+            "github.com/Xavier-Lam/go-wechat/officialaccount"
+        )
+
+        func main() {
+            auth := wechat.NewAuth("appId", "appSecret")
+            cache := caches.NewDummyCache()
+            conf := client.Config{Cache: cache}
+	        oa := officialaccount.New(auth, conf)
+            jsConfig, err := oa.Js.GetJsConfig("url", officialaccount.JsConfig{})
+            data, err := json.Marshal(jsConfig)
+        }
+
+* Call api directly
 
         package main
 
@@ -29,17 +50,17 @@ Features:
         func main() {
             auth := wechat.NewAuth("appId", "appSecret")
             cache := caches.NewDummyCache()
-            conf := &client.Config{Cache: cache}
-            c := client.New(auth, conf)
+            conf := client.Config{Cache: cache}
+            w := client.New(auth, conf)
             data := map[string]interface{}{
                 "scene": "value1",
                 "width": 430,
             }
-            resp, err := c.PostJson("/wxa/getwxacodeunlimit", data, true)
+            resp, err := w.PostJson("/wxa/getwxacodeunlimit", data, true)
         }
 
 * Get latest access token
 
-        c := client.New(auth, conf)
-        token, err := c.GetAccessToken()
+        w := client.New(auth, conf)
+        token, err := w.GetAccessToken()
         ak := token.GetAccessToken()

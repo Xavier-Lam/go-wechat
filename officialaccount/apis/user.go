@@ -32,8 +32,8 @@ type User interface {
 	GetInfo(openid string, lang string) (*UserInfo, error)
 }
 
-func newUser(client client.WeChatClient) User {
-	return &user{c: client}
+func newUser(c client.WeChatClient) User {
+	return &user{c: c}
 }
 
 func (api *user) GetInfo(openid string, lang string) (*UserInfo, error) {

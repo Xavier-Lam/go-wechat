@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,10 +18,10 @@ type HttpClient interface {
 }
 
 type Config struct {
-	HttpClient     HttpClient   // Default Http client to send request
-	Cache          caches.Cache // Cache instance for managing tokens
-	AccessTokenUri *url.URL     // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
-	BaseApiUri     *url.URL     // The endpoint to request an API, if full path is not given, default value is 'https://api.weixin.qq.com'
+	AccessTokenClient AccessTokenClient // The client used for request access token
+	BaseApiUri        *url.URL          // The endpoint to request an API, if full path is not given, default value is 'https://api.weixin.qq.com'
+	Cache             caches.Cache      // Cache instance for managing tokens
+	HttpClient        HttpClient        // Default Http client to send request
 }
 
 const (
@@ -64,11 +63,11 @@ type WeChatClient interface {
 
 	// GetAccessToken retrieves the access token.
 	// It may return an error along with the token if there is no `Cache` set up.
-	GetAccessToken() (Token, error)
+	GetAccessToken() (*Token, error)
 
 	// FetchAccessToken renews and retrieves an access token.
 	// It may return an error along with the token if there is no `Cache` set up.
-	FetchAccessToken() (Token, error)
+	FetchAccessToken() (*Token, error)
 }
 
 type weChatClient struct {
@@ -80,40 +79,23 @@ type weChatClient struct {
 }
 
 // Create a new `WeChatClient`
-func New(auth wechat.Auth, conf *Config) WeChatClient {
-	// Set up base dependencies if not given
-	if conf == nil {
-		conf = &Config{}
-	}
-	if conf.AccessTokenUri == nil {
-		conf.AccessTokenUri, _ = url.Parse(DefaultAccessTokenUri)
-	}
-	if conf.HttpClient == nil {
-		conf.HttpClient = &http.Client{}
-	}
-	akc := &accessTokenClient{
-		http: conf.HttpClient,
-		url:  conf.AccessTokenUri,
-	}
-
-	return NewWithDependency(akc, auth, conf)
-}
-
-// If you want to inject your own dependencies, you can use this constructor to create a client
-func NewWithDependency(akc AccessTokenClient, auth wechat.Auth, conf *Config) WeChatClient {
-	// Set up base dependencies if not given
-	if conf == nil {
-		conf = &Config{}
-	}
+func New(auth wechat.Auth, conf Config) WeChatClient {
 	if conf.BaseApiUri == nil {
 		conf.BaseApiUri, _ = url.Parse(DefaultBaseApiUri)
 	}
 	if conf.HttpClient == nil {
 		conf.HttpClient = &http.Client{}
 	}
+	if conf.AccessTokenClient == nil {
+		accessTokenUri, _ := url.Parse(DefaultAccessTokenUri)
+		conf.AccessTokenClient = NewAccessTokenClient(
+			accessTokenUri,
+			conf.HttpClient,
+		)
+	}
 
 	return &weChatClient{
-		akc:     akc,
+		akc:     conf.AccessTokenClient,
 		auth:    auth,
 		baseUri: conf.BaseApiUri,
 		cache:   conf.Cache,
@@ -179,11 +161,12 @@ func (c *weChatClient) GetAuth() wechat.Auth {
 	return c.auth
 }
 
-func (c *weChatClient) GetAccessToken() (Token, error) {
+func (c *weChatClient) GetAccessToken() (*Token, error) {
 	if c.cache != nil {
-		cachedValue, err := c.cache.Get(c.auth.GetAppId(), "ak")
+		cachedValue, err := c.cache.Get(c.auth.GetAppId(), caches.BizAccessToken)
 		if err == nil {
-			if token, ok := cachedValue.(Token); ok {
+			token, err := deserializeToken(cachedValue)
+			if err == nil {
 				return token, nil
 			}
 		}
@@ -192,16 +175,26 @@ func (c *weChatClient) GetAccessToken() (Token, error) {
 	return c.FetchAccessToken()
 }
 
-func (c *weChatClient) FetchAccessToken() (Token, error) {
+func (c *weChatClient) FetchAccessToken() (*Token, error) {
+	// TODO: prevent concurrent fetching
 	token, err := c.akc.GetAccessToken(c.auth)
 	if err != nil {
 		return nil, err
 	}
 
 	if c.cache == nil {
-		err = fmt.Errorf("Cache is not set")
+		err = fmt.Errorf("cache is not set")
 	} else {
-		err = c.cache.Set(c.auth.GetAppId(), "ak", token, token.GetExpiresIn())
+		serializedToken, err := serializeToken(token)
+		if err != nil {
+			return nil, err
+		}
+		err = c.cache.Set(
+			c.auth.GetAppId(),
+			caches.BizAccessToken,
+			serializedToken,
+			token.GetExpiresIn(),
+		)
 	}
 
 	return token, err
@@ -211,13 +204,13 @@ func (c *weChatClient) do(req *http.Request) (*http.Response, error) {
 	token := req.Context().Value("token")
 	if token != nil {
 		query := req.URL.Query()
-		query.Set("access_token", token.(Token).GetAccessToken())
+		query.Set("access_token", token.(*Token).GetAccessToken())
 		req.URL.RawQuery = query.Encode()
 	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("An error occurred when sending request: %w", err)
+		return nil, fmt.Errorf("sending request failed: %w", err)
 	}
 
 	err = processResponse(resp)
@@ -238,7 +231,7 @@ func (c *weChatClient) handleError(err error, req *http.Request, resp *http.Resp
 		ErrCodeInvalidCredential:
 		ctx := req.Context()
 		if ctx.Value("token") != nil {
-			var token Token
+			var token *Token
 			token, apiError.RetryError = c.FetchAccessToken()
 			if token == nil {
 				return nil, apiError
@@ -263,22 +256,11 @@ func processResponse(resp *http.Response) error {
 		var apiError WeChatApiError
 		err := GetJson(resp, &apiError)
 		if err != nil {
-			return fmt.Errorf("Failed to decode JSON: %w", err)
+			return fmt.Errorf("failed to decode JSON: %w", err)
 		} else if apiError.ErrCode != 0 {
 			return apiError
 		}
 	}
 
 	return nil
-}
-
-func GetJson(resp *http.Response, data interface{}) error {
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(body, data)
-	resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-	return err
 }
