@@ -23,7 +23,8 @@ func newMockJsApi(ticket string) apis.Js {
 
 func (api *mockJsApi) GetTicket() (*apis.JSTicket, error) {
 	return &apis.JSTicket{
-		Ticket: api.ticket,
+		Ticket:    api.ticket,
+		ExpiresIn: 7200,
 	}, nil
 }
 
