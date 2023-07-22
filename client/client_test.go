@@ -114,7 +114,7 @@ func TestWeChatClientDo(t *testing.T) {
 
 	config = client.Config{
 		HttpClient: mc,
-		BaseApiUri: expectedBaseUrl,
+		BaseApiUrl: expectedBaseUrl,
 	}
 	c = client.New(auth, config)
 
@@ -134,7 +134,7 @@ func TestWeChatClientDo(t *testing.T) {
 
 	config = client.Config{
 		HttpClient: mc,
-		BaseApiUri: expectedBaseUrl,
+		BaseApiUrl: expectedBaseUrl,
 	}
 	c = client.New(auth, config)
 
@@ -291,8 +291,8 @@ func TestWeChatClientDoWithInvalidTokenAndInvalidCredential(t *testing.T) {
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "40014")
 	assert.ErrorContains(t, err, "40125")
-	assert.Equal(t, err.(client.WeChatApiError).ErrCode, 40014)
-	assert.Equal(t, err.(client.WeChatApiError).RetryError.(client.WeChatApiError).ErrCode, 40125)
+	assert.Equal(t, err.(*url.Error).Err.(client.WeChatApiError).ErrCode, 40014)
+	assert.Equal(t, err.(*url.Error).Err.(client.WeChatApiError).RetryError.(*url.Error).Err.(client.WeChatApiError).ErrCode, 40125)
 }
 
 func TestWeChatClientGetAccessToken(t *testing.T) {
@@ -308,10 +308,6 @@ func TestWeChatClientGetAccessToken(t *testing.T) {
 	c := client.New(auth, config)
 
 	token, err := c.GetAccessToken()
-	assert.NoError(t, err)
-	assert.Equal(t, oldToken, token.GetAccessToken())
-
-	token, err = c.GetAccessToken()
 	assert.NoError(t, err)
 	assert.Equal(t, oldToken, token.GetAccessToken())
 

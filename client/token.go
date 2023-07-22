@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/Xavier-Lam/go-wechat"
+	"github.com/Xavier-Lam/go-wechat/internal/auth"
 )
 
 const (
@@ -56,22 +56,27 @@ func (t *Token) GetExpiresAt() time.Time {
 }
 
 type AccessTokenClient interface {
-	GetAccessToken(auth wechat.Auth) (*Token, error)
+	GetAccessToken(auth auth.Auth) (*Token, error)
 }
 
 type accessTokenClient struct {
-	http     HttpClient
+	client   *http.Client
 	endpoint *url.URL // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
 }
 
-func NewAccessTokenClient(endpoint *url.URL, http HttpClient) AccessTokenClient {
+func NewAccessTokenClient(endpoint *url.URL, client *http.Client) AccessTokenClient {
+	if client == nil {
+		client = &http.Client{
+			Transport: NewCommonRoundTripper(http.DefaultTransport, nil),
+		}
+	}
 	return &accessTokenClient{
-		http:     http,
+		client:   client,
 		endpoint: endpoint,
 	}
 }
 
-func (c *accessTokenClient) GetAccessToken(auth wechat.Auth) (*Token, error) {
+func (c *accessTokenClient) GetAccessToken(auth auth.Auth) (*Token, error) {
 	// Build url
 	uri := c.endpoint.String()
 	query := url.Values{
@@ -88,17 +93,11 @@ func (c *accessTokenClient) GetAccessToken(auth wechat.Auth) (*Token, error) {
 	}
 
 	// Send request
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("sending request failed: %w", err)
-	}
-
-	// Handle response
-	defer resp.Body.Close()
-	err = processResponse(resp)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	// Parse token
 	token := &tokenResponse{}

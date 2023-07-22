@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Xavier-Lam/go-wechat"
 	"github.com/Xavier-Lam/go-wechat/client"
+	"github.com/Xavier-Lam/go-wechat/internal/auth"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,11 +18,14 @@ type mockHttpClient struct {
 	handler RequestHandler
 }
 
-func NewMockHttpClient(handler RequestHandler) client.HttpClient {
-	return &mockHttpClient{handler: handler}
+func NewMockHttpClient(handler RequestHandler) *http.Client {
+	// return &mockHttpClient{handler: handler}
+	return &http.Client{
+		Transport: &mockHttpClient{handler: handler},
+	}
 }
 
-func (c *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
+func (c *mockHttpClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	c.calls++
 	return c.handler(req, c.calls)
 }
@@ -35,7 +38,7 @@ func NewMockAccessTokenClient(token string) client.AccessTokenClient {
 	return &mockAccessTokenClient{token: token}
 }
 
-func (c *mockAccessTokenClient) GetAccessToken(auth wechat.Auth) (*client.Token, error) {
+func (c *mockAccessTokenClient) GetAccessToken(auth auth.Auth) (*client.Token, error) {
 	return client.NewToken(c.token, client.DefaultTokenExpiresIn), nil
 }
 

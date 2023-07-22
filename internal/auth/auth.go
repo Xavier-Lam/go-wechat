@@ -1,4 +1,4 @@
-package wechat
+package auth
 
 // Auth represents the authentication interface
 type Auth interface {

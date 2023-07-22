@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/Xavier-Lam/go-wechat"
 	"github.com/Xavier-Lam/go-wechat/caches"
+	"github.com/Xavier-Lam/go-wechat/internal/auth"
 	"github.com/Xavier-Lam/go-wechat/officialaccount/apis"
 )
 
@@ -26,11 +26,11 @@ type JsConfig struct {
 
 type js struct {
 	api   apis.Js
-	auth  wechat.Auth
+	auth  auth.Auth
 	cache caches.Cache
 }
 
-func newJs(auth wechat.Auth, api apis.Js, cache caches.Cache) *js {
+func newJs(auth auth.Auth, api apis.Js, cache caches.Cache) *js {
 	return &js{
 		api:   api,
 		auth:  auth,
