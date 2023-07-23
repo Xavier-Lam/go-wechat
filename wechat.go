@@ -17,13 +17,14 @@ type (
 
 // Exported constructors
 var (
-	NewAuth              = auth.NewAuth
-	NewAccessTokenClient = client.NewAccessTokenClient
-	NewMiniProgram       = miniprogram.New
-	NewOfficeAccount     = officialaccount.New
-	NewWeChatClient      = client.New
+	NewAuth          = auth.NewAuth
+	NewMiniProgram   = miniprogram.New
+	NewOfficeAccount = officialaccount.New
+	NewWeChatClient  = client.New
 
-	NewAccessToken = auth.NewAccessToken
+	NewAccessToken                  = auth.NewAccessToken
+	NewAccessTokenClient            = client.NewAccessTokenClient
+	NewAccessTokenCredentialManager = client.NewAccessTokenCredentialManager
 )
 
 // Exported configurations

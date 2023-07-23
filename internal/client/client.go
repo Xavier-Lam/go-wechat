@@ -24,10 +24,20 @@ const (
 )
 
 type Config struct {
-	AccessTokenClient AccessTokenClient // The client used for request access token
-	BaseApiUrl        *url.URL          // The endpoint to request an API, if full path is not given, default value is 'https://api.weixin.qq.com'
-	Cache             caches.Cache      // Cache instance for managing tokens
-	HttpClient        *http.Client      // Default Http client to send request
+	// CredentialManagerFactory is a factory function that creates a `CredentialManager` managing the access token.
+	// This option should be left as the default value (nil), unless you want to customize the client
+	// For example, if you want to request your access token from a different service than Tencent's.
+	CredentialManagerFactory AccessTokenCredentialManagerFactory
+
+	// BaseApiUrl is the base URL used for making API requests.
+	// If not provided, the default value is 'https://api.weixin.qq.com'.
+	BaseApiUrl *url.URL
+
+	// Cache instance for managing tokens
+	Cache caches.Cache
+
+	// HttpClient is the default HTTP client used for sending requests.
+	HttpClient *http.Client
 }
 
 // Represents an error that occurs when the WeChat API returns an unexpected code.
@@ -68,19 +78,18 @@ type WeChatClient interface {
 	FetchAccessToken() (*auth.AccessToken, error)
 }
 
-type weChatClient struct {
+type DefaultWeChatClient struct {
 	auth   auth.Auth
 	cm     auth.CredentialManager
-	cache  caches.Cache
 	client *http.Client
 }
 
 // Create a new `WeChatClient`
-func New(a auth.Auth, conf Config) WeChatClient {
+func New(auth auth.Auth, conf Config) WeChatClient {
 	var (
-		atc        AccessTokenClient
 		baseApiUrl *url.URL
 		client     http.Client
+		factory    AccessTokenCredentialManagerFactory
 	)
 
 	if conf.BaseApiUrl == nil {
@@ -95,38 +104,27 @@ func New(a auth.Auth, conf Config) WeChatClient {
 		client = *conf.HttpClient
 	}
 
-	if conf.AccessTokenClient == nil {
-		accessTokenUri, _ := url.Parse(DefaultAccessTokenUri)
-		atcClient := client
-		atc = NewAccessTokenClient(
-			accessTokenUri,
-			auth.NewAuthCredentialManager(a),
-			&atcClient,
-		)
+	if conf.CredentialManagerFactory == nil {
+		factory = NewAccessTokenCredentialManager
 	} else {
-		atc = conf.AccessTokenClient
+		factory = conf.CredentialManagerFactory
 	}
+	cm := factory(auth, client, conf.Cache, nil)
 
-	cm := &AccessTokenCredentialManager{
-		atc:   atc,
-		auth:  a,
-		cache: conf.Cache,
-	}
 	client.Transport =
 		NewCredentialRoundTripper(cm,
 			NewAccessTokenRoundTripper(
 				NewCommonRoundTripper(
 					baseApiUrl, client.Transport)))
 
-	return &weChatClient{
+	return &DefaultWeChatClient{
 		cm:     cm,
-		auth:   a,
-		cache:  conf.Cache,
+		auth:   auth,
 		client: &client,
 	}
 }
 
-func (c *weChatClient) Get(url string, withCredential bool) (*http.Response, error) {
+func (c *DefaultWeChatClient) Get(url string, withCredential bool) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -135,7 +133,7 @@ func (c *weChatClient) Get(url string, withCredential bool) (*http.Response, err
 	return c.Do(req, withCredential)
 }
 
-func (c *weChatClient) PostJson(url string, data interface{}, withCredential bool) (*http.Response, error) {
+func (c *DefaultWeChatClient) PostJson(url string, data interface{}, withCredential bool) (*http.Response, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -151,7 +149,7 @@ func (c *weChatClient) PostJson(url string, data interface{}, withCredential boo
 	return c.Do(req, withCredential)
 }
 
-func (c *weChatClient) Do(req *http.Request, withCredential bool) (*http.Response, error) {
+func (c *DefaultWeChatClient) Do(req *http.Request, withCredential bool) (*http.Response, error) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, RequestContextWithCredential, withCredential)
 	req = req.WithContext(ctx)
@@ -159,11 +157,11 @@ func (c *weChatClient) Do(req *http.Request, withCredential bool) (*http.Respons
 	return c.client.Do(req)
 }
 
-func (c *weChatClient) GetAuth() auth.Auth {
+func (c *DefaultWeChatClient) GetAuth() auth.Auth {
 	return c.auth
 }
 
-func (c *weChatClient) GetAccessToken() (*auth.AccessToken, error) {
+func (c *DefaultWeChatClient) GetAccessToken() (*auth.AccessToken, error) {
 	token, err := c.cm.Get()
 	if token != nil {
 		return token.(*auth.AccessToken), err
@@ -171,7 +169,7 @@ func (c *weChatClient) GetAccessToken() (*auth.AccessToken, error) {
 	return nil, err
 }
 
-func (c *weChatClient) FetchAccessToken() (*auth.AccessToken, error) {
+func (c *DefaultWeChatClient) FetchAccessToken() (*auth.AccessToken, error) {
 	token, err := c.cm.Renew()
 	if token != nil {
 		return token.(*auth.AccessToken), err

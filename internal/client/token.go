@@ -98,6 +98,17 @@ func (m *AccessTokenCredentialManager) get() (*auth.AccessToken, error) {
 	return token, nil
 }
 
+type AccessTokenCredentialManagerFactory = func(auth auth.Auth, client http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager
+
+func NewAccessTokenCredentialManager(auth auth.Auth, client http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
+	atc := NewAccessTokenClient(accessTokenUrl, auth, &client)
+	return &AccessTokenCredentialManager{
+		atc:   atc,
+		auth:  auth,
+		cache: cache,
+	}
+}
+
 type TokenResponse interface {
 	GetAccessToken() string
 	GetExpiresIn() int
@@ -121,30 +132,34 @@ type AccessTokenClient interface {
 }
 
 type TokenClient struct {
-	client   *http.Client
-	endpoint *url.URL // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
-	dto      TokenResponse
+	Client   *http.Client
+	Endpoint *url.URL // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
+	DTO      TokenResponse
 }
 
-func NewAccessTokenClient(endpoint *url.URL, cm auth.CredentialManager, client *http.Client) AccessTokenClient {
+func NewAccessTokenClient(endpoint *url.URL, a auth.Auth, client *http.Client) AccessTokenClient {
 	if client == nil {
 		client = &http.Client{}
 	}
 	client.Transport =
-		NewCredentialRoundTripper(cm,
+		NewCredentialRoundTripper(auth.NewAuthCredentialManager(a),
 			NewFetchAccessTokenRoundTripper(
 				NewCommonRoundTripper(nil, client.Transport)))
 
+	if endpoint == nil {
+		endpoint, _ = url.Parse(DefaultAccessTokenUri)
+	}
+
 	return &TokenClient{
-		client:   client,
-		endpoint: endpoint,
-		dto:      &tokenResponse{},
+		Client:   client,
+		Endpoint: endpoint,
+		DTO:      &tokenResponse{},
 	}
 }
 
 func (c *TokenClient) GetAccessToken() (*auth.AccessToken, error) {
 	// Prepare request
-	req, err := http.NewRequest(http.MethodGet, c.endpoint.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, c.Endpoint.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -153,14 +168,14 @@ func (c *TokenClient) GetAccessToken() (*auth.AccessToken, error) {
 	req = req.WithContext(ctx)
 
 	// Send request
-	resp, err := c.client.Do(req)
+	resp, err := c.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	// Parse token
-	token := c.dto
+	token := c.DTO
 	err = GetJson(resp, token)
 	if err != nil {
 		return nil, fmt.Errorf("malformed access token response: %w", err)

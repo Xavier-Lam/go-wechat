@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/Xavier-Lam/go-wechat/caches"
 	"github.com/Xavier-Lam/go-wechat/internal/auth"
 	"github.com/Xavier-Lam/go-wechat/internal/client"
 	"github.com/stretchr/testify/assert"
@@ -30,18 +31,6 @@ func (c *mockHttpClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	return c.handler(req, c.calls)
 }
 
-type mockAccessTokenClient struct {
-	token string
-}
-
-func NewMockAccessTokenClient(token string) client.AccessTokenClient {
-	return &mockAccessTokenClient{token: token}
-}
-
-func (c *mockAccessTokenClient) GetAccessToken() (*auth.AccessToken, error) {
-	return auth.NewAccessToken(c.token, auth.DefaultTokenExpiresIn), nil
-}
-
 type responses struct{}
 
 func (r *responses) Empty() (*http.Response, error) {
@@ -63,4 +52,34 @@ func AssertEndpointEqual(t *testing.T, expected string, actual *url.URL) {
 	assert.Equal(t, uri.Scheme, actual.Scheme)
 	assert.Equal(t, uri.Host, actual.Host)
 	assert.Equal(t, uri.Path, actual.Path)
+}
+
+type mockAccessTokenClient struct {
+	token string
+}
+
+func NewMockAccessTokenClient(token string) client.AccessTokenClient {
+	return &mockAccessTokenClient{token: token}
+}
+
+func (c *mockAccessTokenClient) GetAccessToken() (*auth.AccessToken, error) {
+	return auth.NewAccessToken(c.token, auth.DefaultTokenExpiresIn), nil
+}
+
+type mockAccessTokenCredentialManager struct {
+	client.AccessTokenCredentialManager
+	token string
+}
+
+func MockAccessTokenCredentialManagerFactoryProvider(token string) client.AccessTokenCredentialManagerFactory {
+	return func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
+		return &mockAccessTokenCredentialManager{
+			client.AccessTokenCredentialManager{},
+			token,
+		}
+	}
+}
+
+func (m *mockAccessTokenCredentialManager) Get() (interface{}, error) {
+	return auth.NewAccessToken(m.token, 7200), nil
 }

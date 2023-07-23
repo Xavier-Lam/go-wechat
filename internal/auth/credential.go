@@ -17,30 +17,30 @@ type CredentialManager interface {
 	Delete() error
 }
 
-type authCredentialManager struct {
+type AuthCredentialManager struct {
 	auth Auth
 }
 
 // Provide `Auth`
 func NewAuthCredentialManager(auth Auth) CredentialManager {
-	return &authCredentialManager{auth: auth}
+	return &AuthCredentialManager{auth: auth}
 }
 
-func (cm *authCredentialManager) Get() (interface{}, error) {
+func (cm *AuthCredentialManager) Get() (interface{}, error) {
 	if cm.auth == nil {
 		return errors.New("auth not set"), nil
 	}
 	return cm.auth, nil
 }
 
-func (cm *authCredentialManager) Set(credential interface{}) error {
+func (cm *AuthCredentialManager) Set(credential interface{}) error {
 	return errors.New("not settable")
 }
 
-func (cm *authCredentialManager) Renew() (interface{}, error) {
+func (cm *AuthCredentialManager) Renew() (interface{}, error) {
 	return nil, errors.New("not renewable")
 }
 
-func (cm *authCredentialManager) Delete() error {
+func (cm *AuthCredentialManager) Delete() error {
 	return errors.New("not deletable")
 }

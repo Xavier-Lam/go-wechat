@@ -5,9 +5,9 @@ import (
 	"github.com/Xavier-Lam/go-wechat/internal/auth"
 )
 
-func NewWeChatAccessTokenCredentialManager(auth auth.Auth, cache caches.Cache, akc AccessTokenClient) auth.CredentialManager {
+func NewWeChatAccessTokenCredentialManager(auth auth.Auth, cache caches.Cache, atc AccessTokenClient) auth.CredentialManager {
 	return &AccessTokenCredentialManager{
-		atc:   akc,
+		atc:   atc,
 		auth:  auth,
 		cache: cache,
 	}
