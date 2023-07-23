@@ -8,9 +8,15 @@ import (
 	"github.com/Xavier-Lam/go-wechat/internal/auth"
 )
 
+var ErrCacheNotSet = errors.New("cache not set")
+
+// It would be much better if Go supports covariance...
 type CredentialManager interface {
 	// Get the latest credential
 	Get() (interface{}, error)
+
+	// Set the latest credential
+	Set(credential interface{}) error
 
 	// Renew credential
 	Renew() (interface{}, error)
@@ -19,15 +25,36 @@ type CredentialManager interface {
 	Delete() error
 }
 
-var ErrCacheNotSet = errors.New("cache not set")
+type authCredentialManager struct {
+	auth auth.Auth
+}
 
-type weChatAccessTokenCredentialManager struct {
+func (cm *authCredentialManager) Get() (interface{}, error) {
+	if cm.auth == nil {
+		return errors.New("auth not set"), nil
+	}
+	return cm.auth, nil
+}
+
+func (cm *authCredentialManager) Set(credential interface{}) error {
+	return errors.New("not settable")
+}
+
+func (cm *authCredentialManager) Renew() (interface{}, error) {
+	return nil, errors.New("not renewable")
+}
+
+func (cm *authCredentialManager) Delete() error {
+	return errors.New("not deletable")
+}
+
+type accessTokenCredentialManager struct {
 	atc   AccessTokenClient
 	auth  auth.Auth
 	cache caches.Cache
 }
 
-func (cm *weChatAccessTokenCredentialManager) Get() (interface{}, error) {
+func (cm *accessTokenCredentialManager) Get() (interface{}, error) {
 	cachedValue, err := cm.get()
 	if err == nil {
 		return cachedValue, nil
@@ -36,11 +63,15 @@ func (cm *weChatAccessTokenCredentialManager) Get() (interface{}, error) {
 	return cm.Renew()
 }
 
-func (cm *weChatAccessTokenCredentialManager) Renew() (interface{}, error) {
+func (cm *accessTokenCredentialManager) Set(credential interface{}) error {
+	return errors.New("not settable")
+}
+
+func (cm *accessTokenCredentialManager) Renew() (interface{}, error) {
 	cm.Delete()
 
 	// TODO: prevent concurrent fetching
-	token, err := cm.atc.GetAccessToken(cm.auth)
+	token, err := cm.atc.GetAccessToken()
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +94,7 @@ func (cm *weChatAccessTokenCredentialManager) Renew() (interface{}, error) {
 	return token, err
 }
 
-func (cm *weChatAccessTokenCredentialManager) Delete() error {
+func (cm *accessTokenCredentialManager) Delete() error {
 	// TODO: prevent concurrent fetching
 	token, err := cm.get()
 	if err != nil {
@@ -80,7 +111,7 @@ func (cm *weChatAccessTokenCredentialManager) Delete() error {
 	)
 }
 
-func (m *weChatAccessTokenCredentialManager) get() (*Token, error) {
+func (m *accessTokenCredentialManager) get() (*Token, error) {
 	if m.cache == nil {
 		return nil, ErrCacheNotSet
 	}

@@ -94,25 +94,25 @@ func New(auth auth.Auth, conf Config) WeChatClient {
 	} else {
 		client = *conf.HttpClient
 	}
-	client.Transport = NewCommonRoundTripper(client.Transport, baseApiUrl)
 
 	if conf.AccessTokenClient == nil {
 		accessTokenUri, _ := url.Parse(DefaultAccessTokenUri)
 		atcClient := client
 		atc = NewAccessTokenClient(
 			accessTokenUri,
+			&authCredentialManager{auth: auth},
 			&atcClient,
 		)
 	} else {
 		atc = conf.AccessTokenClient
 	}
 
-	cm := &weChatAccessTokenCredentialManager{
+	cm := &accessTokenCredentialManager{
 		atc:   atc,
 		auth:  auth,
 		cache: conf.Cache,
 	}
-	client.Transport = NewCredentialRoundTripper(NewAccessTokenRoundTripper(client.Transport), cm)
+	client.Transport = NewCredentialRoundTripper(NewAccessTokenRoundTripper(NewCommonRoundTripper(client.Transport, baseApiUrl)), cm)
 
 	return &weChatClient{
 		cm:     cm,

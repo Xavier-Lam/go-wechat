@@ -1,13 +1,12 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/Xavier-Lam/go-wechat/internal/auth"
 )
 
 const (
@@ -15,9 +14,22 @@ const (
 	DefaultTokenExpiresIn = 7200
 )
 
+type TokenResponse interface {
+	GetAccessToken() string
+	GetExpiresIn() int
+}
+
 type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
+}
+
+func (t *tokenResponse) GetAccessToken() string {
+	return t.AccessToken
+}
+
+func (t *tokenResponse) GetExpiresIn() int {
+	return t.ExpiresIn
 }
 
 type Token struct {
@@ -56,41 +68,37 @@ func (t *Token) GetExpiresAt() time.Time {
 }
 
 type AccessTokenClient interface {
-	GetAccessToken(auth auth.Auth) (*Token, error)
+	GetAccessToken() (*Token, error)
 }
 
-type accessTokenClient struct {
+type TokenClient struct {
 	client   *http.Client
 	endpoint *url.URL // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
+	dto      TokenResponse
 }
 
-func NewAccessTokenClient(endpoint *url.URL, client *http.Client) AccessTokenClient {
+func NewAccessTokenClient(endpoint *url.URL, cm CredentialManager, client *http.Client) AccessTokenClient {
 	if client == nil {
-		client = &http.Client{
-			Transport: NewCommonRoundTripper(http.DefaultTransport, nil),
-		}
+		client = &http.Client{}
 	}
-	return &accessTokenClient{
+	client.Transport = NewCredentialRoundTripper(NewFetchAccessTokenRoundTripper(NewCommonRoundTripper(client.Transport, nil)), cm)
+
+	return &TokenClient{
 		client:   client,
 		endpoint: endpoint,
+		dto:      &tokenResponse{},
 	}
 }
 
-func (c *accessTokenClient) GetAccessToken(auth auth.Auth) (*Token, error) {
-	// Build url
-	uri := c.endpoint.String()
-	query := url.Values{
-		"grant_type": {"client_credential"},
-		"appid":      {auth.GetAppId()},
-		"secret":     {auth.GetAppSecret()},
-	}
-	uri += "?" + query.Encode()
-
+func (c *TokenClient) GetAccessToken() (*Token, error) {
 	// Prepare request
-	req, err := http.NewRequest(http.MethodGet, uri, nil)
+	req, err := http.NewRequest(http.MethodGet, c.endpoint.String(), nil)
 	if err != nil {
 		return nil, err
 	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, RequestContextWithCredential, true)
+	req = req.WithContext(ctx)
 
 	// Send request
 	resp, err := c.client.Do(req)
@@ -100,16 +108,16 @@ func (c *accessTokenClient) GetAccessToken(auth auth.Auth) (*Token, error) {
 	defer resp.Body.Close()
 
 	// Parse token
-	token := &tokenResponse{}
-	err = GetJson(resp, &token)
+	token := c.dto
+	err = GetJson(resp, token)
 	if err != nil {
 		return nil, fmt.Errorf("malformed access token response: %w", err)
 	}
-	if token.AccessToken == "" {
+	if token.GetAccessToken() == "" {
 		return nil, fmt.Errorf("invalid access token response")
 	}
 
-	rv := NewToken(token.AccessToken, token.ExpiresIn)
+	rv := NewToken(token.GetAccessToken(), token.GetExpiresIn())
 	return rv, nil
 }
 

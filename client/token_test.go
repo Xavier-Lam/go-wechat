@@ -26,9 +26,9 @@ func TestTokenGetAccessToken(t *testing.T) {
 		return test.Responses.Json(`{"access_token": "access-token", "expires_in": 7200}`)
 	})
 	url, _ := url.Parse(client.DefaultAccessTokenUri)
-	client := client.NewAccessTokenClient(url, httpClient)
+	c := client.NewAccessTokenClient(url, client.NewAuthCredentialManager(auth), httpClient)
 
-	token, err := client.GetAccessToken(auth)
+	token, err := c.GetAccessToken()
 
 	assert.NoError(t, err)
 	assert.Equal(t, "access-token", token.GetAccessToken())

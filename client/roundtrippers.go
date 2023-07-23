@@ -7,7 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/Xavier-Lam/go-wechat/internal/auth"
 )
+
+type shouldRetry struct {
+	err WeChatApiError
+}
+
+func (err shouldRetry) Error() string {
+	return err.err.Error()
+}
 
 type commonRoundTripper struct {
 	baseUrl *url.URL
@@ -82,7 +92,7 @@ func (rt *credentialRoundTripper) RoundTrip(req *http.Request) (resp *http.Respo
 		return rt.handleError(err, req)
 	}
 
-	return resp, err
+	return
 }
 
 func (rt *credentialRoundTripper) clearContext(req *http.Request) *http.Request {
@@ -108,31 +118,24 @@ func (rt *credentialRoundTripper) setUpCredential(req *http.Request, credential 
 }
 
 func (rt *credentialRoundTripper) handleError(err error, req *http.Request) (*http.Response, error) {
-	apiError, ok := err.(WeChatApiError)
+	shouldRetry, ok := err.(shouldRetry)
 	if !ok {
 		return nil, err
 	}
 
-	switch apiError.ErrCode {
-	case
-		ErrCodeAccessTokenExpired,
-		ErrCodeInvalidAccessToken,
-		ErrCodeInvalidCredential:
-		var token interface{}
-		token, apiError.RetryError = rt.cm.Renew()
-		if token == nil {
-			return nil, apiError
-		}
-
-		return rt.retry(req, token)
+	var credential interface{}
+	apiError := shouldRetry.err
+	credential, apiError.RetryError = rt.cm.Renew()
+	if credential != nil {
+		return rt.retry(req, credential)
 	}
 
-	return nil, err
+	return nil, apiError
 }
 
-func (rt *credentialRoundTripper) retry(req *http.Request, token interface{}) (*http.Response, error) {
+func (rt *credentialRoundTripper) retry(req *http.Request, credential interface{}) (*http.Response, error) {
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, RequestContextCredential, token)
+	ctx = context.WithValue(ctx, RequestContextCredential, credential)
 	req = req.WithContext(ctx)
 	return rt.next.RoundTrip(req)
 }
@@ -149,7 +152,8 @@ func NewAccessTokenRoundTripper(next http.RoundTripper) http.RoundTripper {
 }
 
 func (rt *accessTokenRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	if req.Context().Value(RequestContextWithCredential) == true {
+	credentialRequired := req.Context().Value(RequestContextWithCredential) == true
+	if credentialRequired {
 		tokenValue := req.Context().Value(RequestContextCredential)
 		token, ok := tokenValue.(*Token)
 		if !ok {
@@ -158,6 +162,61 @@ func (rt *accessTokenRoundTripper) RoundTrip(req *http.Request) (resp *http.Resp
 
 		query := req.URL.Query()
 		query.Set("access_token", token.GetAccessToken())
+		req.URL.RawQuery = query.Encode()
+	}
+
+	resp, err = rt.next.RoundTrip(req)
+
+	if credentialRequired && err != nil {
+		return rt.handleError(err, req)
+	}
+
+	return resp, err
+}
+
+func (rt *accessTokenRoundTripper) handleError(err error, req *http.Request) (*http.Response, error) {
+	apiError, ok := err.(WeChatApiError)
+	if !ok {
+		return nil, err
+	}
+
+	switch apiError.ErrCode {
+	case
+		ErrCodeAccessTokenExpired,
+		ErrCodeInvalidAccessToken,
+		ErrCodeInvalidCredential:
+		return nil, shouldRetry{err: apiError}
+	}
+
+	return nil, err
+}
+
+type fetchAccessTokenRoundTripper struct {
+	next http.RoundTripper
+}
+
+// A round tripper for those requests with an access token
+func NewFetchAccessTokenRoundTripper(next http.RoundTripper) http.RoundTripper {
+	return &fetchAccessTokenRoundTripper{
+		next: next,
+	}
+}
+
+func (rt *fetchAccessTokenRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	credentialRequired := req.Context().Value(RequestContextWithCredential) == true
+
+	if credentialRequired {
+		tokenValue := req.Context().Value(RequestContextCredential)
+		auth, ok := tokenValue.(auth.Auth)
+		if !ok {
+			return nil, errors.New("corrupted auth")
+		}
+
+		query := url.Values{
+			"grant_type": {"client_credential"},
+			"appid":      {auth.GetAppId()},
+			"secret":     {auth.GetAppSecret()},
+		}
 		req.URL.RawQuery = query.Encode()
 	}
 

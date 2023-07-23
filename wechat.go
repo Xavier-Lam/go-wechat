@@ -7,6 +7,12 @@ import (
 	"github.com/Xavier-Lam/go-wechat/officialaccount"
 )
 
+// Exported interfaces
+type (
+	Auth = auth.Auth
+)
+
+// Exported constructors
 var (
 	NewAuth          = auth.NewAuth
 	NewMiniProgram   = miniprogram.New
@@ -14,6 +20,7 @@ var (
 	NewWeChatClient  = client.New
 )
 
+// Exported configurations
 type (
 	MiniProgramConfig     = miniprogram.Config
 	OfficialAccountConfig = officialaccount.Config

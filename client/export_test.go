@@ -10,8 +10,12 @@ var (
 	DeserializeToken = deserializeToken
 )
 
+func NewAuthCredentialManager(auth auth.Auth) CredentialManager {
+	return &authCredentialManager{auth: auth}
+}
+
 func NewWeChatAccessTokenCredentialManager(auth auth.Auth, cache caches.Cache, akc AccessTokenClient) CredentialManager {
-	return &weChatAccessTokenCredentialManager{
+	return &accessTokenCredentialManager{
 		atc:   akc,
 		auth:  auth,
 		cache: cache,
