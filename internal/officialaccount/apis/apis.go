@@ -1,17 +1,19 @@
 package apis
 
-import "github.com/Xavier-Lam/go-wechat/client"
+import "github.com/Xavier-Lam/go-wechat/internal/client"
 
 type Apis struct {
 	client.WeChatClient
 
-	Login Login
+	Js   Js
+	User User
 }
 
 func NewApis(c client.WeChatClient) *Apis {
 	return &Apis{
 		c,
 
-		newLogin(c),
+		newJs(c),
+		newUser(c),
 	}
 }

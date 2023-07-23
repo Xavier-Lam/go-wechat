@@ -25,7 +25,7 @@ type commonRoundTripper struct {
 }
 
 // A common round tripper for every request
-func NewCommonRoundTripper(next http.RoundTripper, baseUrl *url.URL) http.RoundTripper {
+func NewCommonRoundTripper(baseUrl *url.URL, next http.RoundTripper) http.RoundTripper {
 	return &commonRoundTripper{
 		baseUrl: baseUrl,
 		next:    next,
@@ -63,12 +63,12 @@ func (rt *commonRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 type credentialRoundTripper struct {
-	cm   CredentialManager
+	cm   auth.CredentialManager
 	next http.RoundTripper
 }
 
 // A round tripper for credential required requests
-func NewCredentialRoundTripper(next http.RoundTripper, cm CredentialManager) http.RoundTripper {
+func NewCredentialRoundTripper(cm auth.CredentialManager, next http.RoundTripper) http.RoundTripper {
 	return &credentialRoundTripper{
 		cm:   cm,
 		next: next,
@@ -155,7 +155,7 @@ func (rt *accessTokenRoundTripper) RoundTrip(req *http.Request) (resp *http.Resp
 	credentialRequired := req.Context().Value(RequestContextWithCredential) == true
 	if credentialRequired {
 		tokenValue := req.Context().Value(RequestContextCredential)
-		token, ok := tokenValue.(*Token)
+		token, ok := tokenValue.(*auth.AccessToken)
 		if !ok {
 			return nil, errors.New("corrupted token")
 		}

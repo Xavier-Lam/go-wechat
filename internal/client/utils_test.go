@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Xavier-Lam/go-wechat/client"
+	"github.com/Xavier-Lam/go-wechat/internal/client"
 	"github.com/Xavier-Lam/go-wechat/internal/test"
 	"github.com/stretchr/testify/assert"
 )

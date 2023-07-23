@@ -61,22 +61,22 @@ type WeChatClient interface {
 
 	// GetAccessToken retrieves the access token.
 	// It may return an error along with the token if there is no `Cache` set up.
-	GetAccessToken() (*Token, error)
+	GetAccessToken() (*auth.AccessToken, error)
 
 	// FetchAccessToken renews and retrieves an access token.
 	// It may return an error along with the token if there is no `Cache` set up.
-	FetchAccessToken() (*Token, error)
+	FetchAccessToken() (*auth.AccessToken, error)
 }
 
 type weChatClient struct {
 	auth   auth.Auth
-	cm     CredentialManager
+	cm     auth.CredentialManager
 	cache  caches.Cache
 	client *http.Client
 }
 
 // Create a new `WeChatClient`
-func New(auth auth.Auth, conf Config) WeChatClient {
+func New(a auth.Auth, conf Config) WeChatClient {
 	var (
 		atc        AccessTokenClient
 		baseApiUrl *url.URL
@@ -100,23 +100,27 @@ func New(auth auth.Auth, conf Config) WeChatClient {
 		atcClient := client
 		atc = NewAccessTokenClient(
 			accessTokenUri,
-			&authCredentialManager{auth: auth},
+			auth.NewAuthCredentialManager(a),
 			&atcClient,
 		)
 	} else {
 		atc = conf.AccessTokenClient
 	}
 
-	cm := &accessTokenCredentialManager{
+	cm := &AccessTokenCredentialManager{
 		atc:   atc,
-		auth:  auth,
+		auth:  a,
 		cache: conf.Cache,
 	}
-	client.Transport = NewCredentialRoundTripper(NewAccessTokenRoundTripper(NewCommonRoundTripper(client.Transport, baseApiUrl)), cm)
+	client.Transport =
+		NewCredentialRoundTripper(cm,
+			NewAccessTokenRoundTripper(
+				NewCommonRoundTripper(
+					baseApiUrl, client.Transport)))
 
 	return &weChatClient{
 		cm:     cm,
-		auth:   auth,
+		auth:   a,
 		cache:  conf.Cache,
 		client: &client,
 	}
@@ -159,18 +163,18 @@ func (c *weChatClient) GetAuth() auth.Auth {
 	return c.auth
 }
 
-func (c *weChatClient) GetAccessToken() (*Token, error) {
+func (c *weChatClient) GetAccessToken() (*auth.AccessToken, error) {
 	token, err := c.cm.Get()
 	if token != nil {
-		return token.(*Token), err
+		return token.(*auth.AccessToken), err
 	}
 	return nil, err
 }
 
-func (c *weChatClient) FetchAccessToken() (*Token, error) {
+func (c *weChatClient) FetchAccessToken() (*auth.AccessToken, error) {
 	token, err := c.cm.Renew()
 	if token != nil {
-		return token.(*Token), err
+		return token.(*auth.AccessToken), err
 	}
 	return nil, err
 }

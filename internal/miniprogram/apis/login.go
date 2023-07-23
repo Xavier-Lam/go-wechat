@@ -3,7 +3,7 @@ package apis
 import (
 	"net/url"
 
-	"github.com/Xavier-Lam/go-wechat/client"
+	"github.com/Xavier-Lam/go-wechat/internal/client"
 )
 
 type Session struct {

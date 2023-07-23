@@ -1,13 +1,13 @@
-package officialaccount
+package miniprogram
 
 import (
 	"net/http"
 	"net/url"
 
 	"github.com/Xavier-Lam/go-wechat/caches"
-	"github.com/Xavier-Lam/go-wechat/client"
 	"github.com/Xavier-Lam/go-wechat/internal/auth"
-	"github.com/Xavier-Lam/go-wechat/officialaccount/apis"
+	"github.com/Xavier-Lam/go-wechat/internal/client"
+	"github.com/Xavier-Lam/go-wechat/internal/miniprogram/apis"
 )
 
 type Config struct {
@@ -19,8 +19,6 @@ type Config struct {
 
 type App struct {
 	Apis *apis.Apis
-
-	Js js
 }
 
 func New(auth auth.Auth, conf Config) *App { // Set up base dependencies if not given
@@ -33,11 +31,13 @@ func New(auth auth.Auth, conf Config) *App { // Set up base dependencies if not 
 	a := apis.NewApis(c)
 	return &App{
 		Apis: a,
-
-		Js: *newJs(auth, a.Js, conf.Cache),
 	}
 }
 
-func (a *App) GetAccessToken() (*client.Token, error) {
+func (a *App) JsCode2Session(code string) (*apis.Session, error) {
+	return a.Apis.Login.JsCode2Session(code)
+}
+
+func (a *App) GetAccessToken() (*auth.AccessToken, error) {
 	return a.Apis.GetAccessToken()
 }

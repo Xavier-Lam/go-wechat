@@ -2,8 +2,8 @@ package apis_test
 
 import (
 	"github.com/Xavier-Lam/go-wechat"
+	"github.com/Xavier-Lam/go-wechat/internal/officialaccount"
 	"github.com/Xavier-Lam/go-wechat/internal/test"
-	"github.com/Xavier-Lam/go-wechat/miniprogram"
 )
 
 var (
@@ -13,10 +13,10 @@ var (
 	auth        = wechat.NewAuth(appID, appSecret)
 )
 
-func newMockMiniProgram(handler test.RequestHandler) *miniprogram.App {
-	return miniprogram.New(
+func newMockOfficialAccount(handler test.RequestHandler) *officialaccount.App {
+	return officialaccount.New(
 		auth,
-		miniprogram.Config{
+		officialaccount.Config{
 			AccessTokenClient: test.NewMockAccessTokenClient(accessToken),
 			HttpClient:        test.NewMockHttpClient(handler),
 		},

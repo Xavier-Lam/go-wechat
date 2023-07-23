@@ -8,7 +8,7 @@ import (
 
 	"github.com/Xavier-Lam/go-wechat/caches"
 	"github.com/Xavier-Lam/go-wechat/internal/auth"
-	"github.com/Xavier-Lam/go-wechat/officialaccount/apis"
+	"github.com/Xavier-Lam/go-wechat/internal/officialaccount/apis"
 )
 
 func init() {

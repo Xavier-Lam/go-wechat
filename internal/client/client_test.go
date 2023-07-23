@@ -10,7 +10,8 @@ import (
 
 	"github.com/Xavier-Lam/go-wechat"
 	"github.com/Xavier-Lam/go-wechat/caches"
-	"github.com/Xavier-Lam/go-wechat/client"
+	"github.com/Xavier-Lam/go-wechat/internal/auth"
+	"github.com/Xavier-Lam/go-wechat/internal/client"
 	"github.com/Xavier-Lam/go-wechat/internal/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +23,7 @@ var (
 var (
 	appID     = "mock-app-id"
 	appSecret = "mock-app-secret"
-	auth      = wechat.NewAuth(appID, appSecret)
+	mockAuth  = wechat.NewAuth(appID, appSecret)
 )
 
 func TestWeChatClientGet(t *testing.T) {
@@ -36,7 +37,7 @@ func TestWeChatClientGet(t *testing.T) {
 	})
 
 	config := client.Config{HttpClient: mc}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	resp, err := c.Get(url, false)
 	assert.NoError(t, err)
@@ -74,7 +75,7 @@ func TestWeChatClientPost(t *testing.T) {
 	})
 
 	config := client.Config{HttpClient: mc}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	resp, err := c.PostJson(url, data, false)
 	assert.NoError(t, err)
@@ -93,7 +94,7 @@ func TestWeChatClientDo(t *testing.T) {
 	})
 
 	config := client.Config{HttpClient: mc}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	resp, err := c.Do(expectedReq, false)
 	assert.NoError(t, err)
@@ -116,7 +117,7 @@ func TestWeChatClientDo(t *testing.T) {
 		HttpClient: mc,
 		BaseApiUrl: expectedBaseUrl,
 	}
-	c = client.New(auth, config)
+	c = client.New(mockAuth, config)
 
 	resp, err = c.Do(expectedReq, false)
 	assert.NoError(t, err)
@@ -136,7 +137,7 @@ func TestWeChatClientDo(t *testing.T) {
 		HttpClient: mc,
 		BaseApiUrl: expectedBaseUrl,
 	}
-	c = client.New(auth, config)
+	c = client.New(mockAuth, config)
 
 	resp, err = c.Do(expectedReq, false)
 	assert.NoError(t, err)
@@ -158,13 +159,13 @@ func TestWeChatClientWithToken(t *testing.T) {
 	})
 
 	cache := caches.NewDummyCache()
-	serializedToken, _ := client.SerializeToken(client.NewToken(accessToken, 3600))
+	serializedToken, _ := auth.SerializeToken(auth.NewAccessToken(accessToken, 3600))
 	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
 	config := client.Config{
 		HttpClient: mc,
 		Cache:      cache,
 	}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	resp, err := c.Do(expectedReq, true)
 	assert.NoError(t, err)
@@ -192,7 +193,7 @@ func TestWeChatClientDoWithoutToken(t *testing.T) {
 		HttpClient:        mc,
 		Cache:             cache,
 	}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	resp, err := c.Do(expectedReq, true)
 	assert.NoError(t, err)
@@ -200,7 +201,7 @@ func TestWeChatClientDoWithoutToken(t *testing.T) {
 
 	storedToken, err := cache.Get(appID, caches.BizAccessToken)
 	assert.NoError(t, err)
-	token, err := client.DeserializeToken(storedToken)
+	token, err := auth.DeserializeToken(storedToken)
 	assert.NoError(t, err)
 	assert.Equal(t, token.GetAccessToken(), accessToken)
 }
@@ -232,14 +233,14 @@ func TestWeChatClientDoWithInvalidToken(t *testing.T) {
 
 	akc := test.NewMockAccessTokenClient(accessToken)
 	cache := caches.NewDummyCache()
-	serializedToken, _ := client.SerializeToken(client.NewToken(invalidToken, 3600))
+	serializedToken, _ := auth.SerializeToken(auth.NewAccessToken(invalidToken, 3600))
 	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
 	config := client.Config{
 		AccessTokenClient: akc,
 		HttpClient:        mc,
 		Cache:             cache,
 	}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	resp, err := c.Do(expectedReq, true)
 	assert.NoError(t, err)
@@ -247,7 +248,7 @@ func TestWeChatClientDoWithInvalidToken(t *testing.T) {
 
 	storedToken, err := cache.Get(appID, caches.BizAccessToken)
 	assert.NoError(t, err)
-	token, err := client.DeserializeToken(storedToken)
+	token, err := auth.DeserializeToken(storedToken)
 	assert.NoError(t, err)
 	assert.Equal(t, token.GetAccessToken(), accessToken)
 }
@@ -279,13 +280,13 @@ func TestWeChatClientDoWithInvalidTokenAndInvalidCredential(t *testing.T) {
 	})
 
 	cache := caches.NewDummyCache()
-	serializedToken, _ := client.SerializeToken(client.NewToken(invalidToken, 3600))
+	serializedToken, _ := auth.SerializeToken(auth.NewAccessToken(invalidToken, 3600))
 	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
 	config := client.Config{
 		HttpClient: mc,
 		Cache:      cache,
 	}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	_, err := c.Do(expectedReq, true)
 	assert.Error(t, err)
@@ -305,7 +306,7 @@ func TestWeChatClientGetAccessToken(t *testing.T) {
 		AccessTokenClient: akc,
 		Cache:             cache,
 	}
-	c := client.New(auth, config)
+	c := client.New(mockAuth, config)
 
 	token, err := c.GetAccessToken()
 	assert.NoError(t, err)
@@ -316,7 +317,7 @@ func TestWeChatClientGetAccessToken(t *testing.T) {
 		AccessTokenClient: akc,
 		Cache:             cache,
 	}
-	c = client.New(auth, config)
+	c = client.New(mockAuth, config)
 
 	token, err = c.GetAccessToken()
 	assert.NoError(t, err)
@@ -332,7 +333,7 @@ func TestWeChatClientGetAccessToken(t *testing.T) {
 }
 
 func TestWeChatClientGetAppId(t *testing.T) {
-	client := client.New(auth, client.Config{})
+	client := client.New(mockAuth, client.Config{})
 
 	result := client.GetAuth()
 	assert.Equal(t, appID, result.GetAppId())

@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"github.com/Xavier-Lam/go-wechat/client"
+	"github.com/Xavier-Lam/go-wechat/internal/client"
 )
 
 type JSTicket struct {
