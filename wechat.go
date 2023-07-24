@@ -10,21 +10,27 @@ import (
 // Exported interfaces
 type (
 	Auth              = auth.Auth
-	AccessToken       = auth.AccessToken
 	AccessTokenClient = client.AccessTokenClient
 	WeChatClient      = client.WeChatClient
 )
 
+// Exported factories
+var (
+	AccessTokenClientFactory  = client.AccessTokenClientFactory
+	AccessTokenManagerFactory = client.AccessTokenManagerFactory
+)
+
 // Exported constructors
 var (
-	NewAuth          = auth.NewAuth
+	NewAuth          = auth.New
 	NewMiniProgram   = miniprogram.New
 	NewOfficeAccount = officialaccount.New
 	NewWeChatClient  = client.New
 
-	NewAccessToken                  = auth.NewAccessToken
-	NewAccessTokenClient            = client.NewAccessTokenClient
-	NewAccessTokenCredentialManager = client.NewAccessTokenCredentialManager
+	// less commonly used
+	NewAccessToken        = auth.NewAccessToken
+	NewAccessTokenClient  = client.NewAccessTokenClient
+	NewAccessTokenManager = client.NewAccessTokenManager
 )
 
 // Exported configurations

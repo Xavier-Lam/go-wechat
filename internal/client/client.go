@@ -23,39 +23,7 @@ const (
 	RequestContextCredential     = "credential"
 )
 
-type Config struct {
-	// CredentialManagerFactory is a factory function that creates a `CredentialManager` managing the access token.
-	// This option should be left as the default value (nil), unless you want to customize the client
-	// For example, if you want to request your access token from a different service than Tencent's.
-	CredentialManagerFactory AccessTokenCredentialManagerFactory
-
-	// BaseApiUrl is the base URL used for making API requests.
-	// If not provided, the default value is 'https://api.weixin.qq.com'.
-	BaseApiUrl *url.URL
-
-	// Cache instance for managing tokens
-	Cache caches.Cache
-
-	// HttpClient is the default HTTP client used for sending requests.
-	HttpClient *http.Client
-}
-
-// Represents an error that occurs when the WeChat API returns an unexpected code.
-type WeChatApiError struct {
-	ErrCode int    `json:"errcode"`
-	ErrMsg  string `json:"errmsg"`
-	// Error happened while retrying
-	RetryError error
-}
-
-func (e WeChatApiError) Error() string {
-	if e.RetryError != nil {
-		return fmt.Sprintf("WeChat API error [%d]: %s (Retry error: %s)", e.ErrCode, e.ErrMsg, e.RetryError.Error())
-	} else {
-		return fmt.Sprintf("WeChat API error [%d]: %s", e.ErrCode, e.ErrMsg)
-	}
-}
-
+// WeChatClient is an interface representing a client for making requests to WeChat APIs.
 type WeChatClient interface {
 	// Sends a GET request
 	Get(url string, withCredential bool) (*http.Response, error)
@@ -78,6 +46,40 @@ type WeChatClient interface {
 	FetchAccessToken() (*auth.AccessToken, error)
 }
 
+// Config is a configuration struct used to set up a `client.WeChatClient`.
+type Config struct {
+	// AccessTokenManagerFactory is a factory function that creates a `CredentialManager` managing the access token.
+	// This option should be left as the default value (nil), unless you want to customize the client
+	// For example, if you want to request your access token from a different service than Tencent's.
+	AccessTokenManagerFactory AccessTokenManagerProvider
+
+	// BaseApiUrl is the base URL used for making API requests.
+	// If not provided, the default value is 'https://api.weixin.qq.com'.
+	BaseApiUrl *url.URL
+
+	// Cache instance for managing tokens
+	Cache caches.Cache
+
+	// HttpClient is the default HTTP client used for sending requests.
+	HttpClient *http.Client
+}
+
+// WeChatApiError represents an error that occurs when the WeChat API returns an unexpected code.
+type WeChatApiError struct {
+	ErrCode int    `json:"errcode"`
+	ErrMsg  string `json:"errmsg"`
+	// Error happened while retrying
+	RetryError error
+}
+
+func (e WeChatApiError) Error() string {
+	if e.RetryError != nil {
+		return fmt.Sprintf("WeChat API error [%d]: %s (Retry error: %s)", e.ErrCode, e.ErrMsg, e.RetryError.Error())
+	} else {
+		return fmt.Sprintf("WeChat API error [%d]: %s", e.ErrCode, e.ErrMsg)
+	}
+}
+
 type DefaultWeChatClient struct {
 	auth   auth.Auth
 	cm     auth.CredentialManager
@@ -89,7 +91,7 @@ func New(auth auth.Auth, conf Config) WeChatClient {
 	var (
 		baseApiUrl *url.URL
 		client     http.Client
-		factory    AccessTokenCredentialManagerFactory
+		factory    AccessTokenManagerProvider
 	)
 
 	if conf.BaseApiUrl == nil {
@@ -99,15 +101,15 @@ func New(auth auth.Auth, conf Config) WeChatClient {
 	}
 
 	if conf.HttpClient == nil {
-		client = http.Client{}
+		client = http.Client{Transport: http.DefaultTransport}
 	} else {
 		client = *conf.HttpClient
 	}
 
-	if conf.CredentialManagerFactory == nil {
-		factory = NewAccessTokenCredentialManager
+	if conf.AccessTokenManagerFactory == nil {
+		factory = AccessTokenManagerFactory
 	} else {
-		factory = conf.CredentialManagerFactory
+		factory = conf.AccessTokenManagerFactory
 	}
 	cm := factory(auth, client, conf.Cache, nil)
 

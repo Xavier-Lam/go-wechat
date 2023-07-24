@@ -13,6 +13,7 @@ type AccessToken struct {
 	createdAt   time.Time
 }
 
+// NewAccessToken creates a new `AccessToken` instance.
 func NewAccessToken(accessToken string, expiresIn int) *AccessToken {
 	if expiresIn <= 0 {
 		expiresIn = DefaultTokenExpiresIn
@@ -24,10 +25,12 @@ func NewAccessToken(accessToken string, expiresIn int) *AccessToken {
 	}
 }
 
+// GetAccessToken returns the access token value.
 func (t *AccessToken) GetAccessToken() string {
 	return t.accessToken
 }
 
+// GetExpiresIn returns the remaining time until the access token expires in seconds.
 func (t *AccessToken) GetExpiresIn() int {
 	timeDiff := time.Since(t.createdAt)
 	timeEscaped := int(timeDiff.Seconds())
@@ -37,6 +40,7 @@ func (t *AccessToken) GetExpiresIn() int {
 	return t.expiresIn - timeEscaped
 }
 
+// GetExpiresAt returns the time when the access token will expire.
 func (t *AccessToken) GetExpiresAt() time.Time {
 	timeDiff := time.Duration(t.expiresIn) * time.Second
 	return t.createdAt.Add(timeDiff)
@@ -48,7 +52,7 @@ type accessToken struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-func SerializeToken(token *AccessToken) ([]byte, error) {
+func SerializeAccessToken(token *AccessToken) ([]byte, error) {
 	timeDiff := -time.Duration(time.Second * time.Duration(token.GetExpiresIn()))
 	data := &accessToken{
 		AccessToken: token.GetAccessToken(),
@@ -58,7 +62,7 @@ func SerializeToken(token *AccessToken) ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func DeserializeToken(bytes []byte) (*AccessToken, error) {
+func DeserializeAccessToken(bytes []byte) (*AccessToken, error) {
 	data := &accessToken{}
 	err := json.Unmarshal(bytes, &data)
 	if err != nil {

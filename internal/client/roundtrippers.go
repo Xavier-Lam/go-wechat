@@ -195,7 +195,7 @@ type fetchAccessTokenRoundTripper struct {
 	next http.RoundTripper
 }
 
-// A round tripper for those requests with an access token
+// A round tripper to get the latest access token
 func NewFetchAccessTokenRoundTripper(next http.RoundTripper) http.RoundTripper {
 	return &fetchAccessTokenRoundTripper{
 		next: next,

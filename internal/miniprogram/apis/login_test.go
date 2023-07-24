@@ -34,6 +34,4 @@ func TestLoginJsCode2Session(t *testing.T) {
 	assert.Equal(t, "xxxxxx", session.OpenId)
 	assert.Equal(t, "xxxxx", session.SessionKey)
 	assert.Equal(t, "xxxxx", session.UnionId)
-	assert.Equal(t, 0, session.ErrCode)
-	assert.Equal(t, "xxxxx", session.ErrMsg)
 }

@@ -35,6 +35,9 @@ func (api *js) GetTicket() (*JSTicket, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ticket.Ticket == "" {
+		return nil, client.ErrInvalidResponse
+	}
 	if ticket.ExpiresIn <= 0 {
 		ticket.ExpiresIn = 7200
 	}

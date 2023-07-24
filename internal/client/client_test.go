@@ -22,7 +22,7 @@ var (
 var (
 	appID     = "mock-app-id"
 	appSecret = "mock-app-secret"
-	mockAuth  = auth.NewAuth(appID, appSecret)
+	mockAuth  = auth.New(appID, appSecret)
 )
 
 func TestWeChatClientGet(t *testing.T) {
@@ -158,7 +158,7 @@ func TestWeChatClientWithToken(t *testing.T) {
 	})
 
 	cache := caches.NewDummyCache()
-	serializedToken, _ := auth.SerializeToken(auth.NewAccessToken(accessToken, 3600))
+	serializedToken, _ := auth.SerializeAccessToken(auth.NewAccessToken(accessToken, 3600))
 	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
 	config := client.Config{
 		HttpClient: mc,
@@ -188,8 +188,8 @@ func TestWeChatClientDoWithoutToken(t *testing.T) {
 	atc := test.NewMockAccessTokenClient(accessToken)
 	cache := caches.NewDummyCache()
 	config := client.Config{
-		CredentialManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
-			return client.NewWeChatAccessTokenCredentialManager(auth, cache, atc)
+		AccessTokenManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
+			return client.NewAccessTokenManager(atc, auth, cache)
 		},
 		HttpClient: mc,
 		Cache:      cache,
@@ -202,7 +202,7 @@ func TestWeChatClientDoWithoutToken(t *testing.T) {
 
 	storedToken, err := cache.Get(appID, caches.BizAccessToken)
 	assert.NoError(t, err)
-	token, err := auth.DeserializeToken(storedToken)
+	token, err := auth.DeserializeAccessToken(storedToken)
 	assert.NoError(t, err)
 	assert.Equal(t, token.GetAccessToken(), accessToken)
 }
@@ -234,11 +234,11 @@ func TestWeChatClientDoWithInvalidToken(t *testing.T) {
 
 	atc := test.NewMockAccessTokenClient(accessToken)
 	cache := caches.NewDummyCache()
-	serializedToken, _ := auth.SerializeToken(auth.NewAccessToken(invalidToken, 3600))
+	serializedToken, _ := auth.SerializeAccessToken(auth.NewAccessToken(invalidToken, 3600))
 	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
 	config := client.Config{
-		CredentialManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
-			return client.NewWeChatAccessTokenCredentialManager(auth, cache, atc)
+		AccessTokenManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
+			return client.NewAccessTokenManager(atc, auth, cache)
 		},
 		HttpClient: mc,
 		Cache:      cache,
@@ -251,7 +251,7 @@ func TestWeChatClientDoWithInvalidToken(t *testing.T) {
 
 	storedToken, err := cache.Get(appID, caches.BizAccessToken)
 	assert.NoError(t, err)
-	token, err := auth.DeserializeToken(storedToken)
+	token, err := auth.DeserializeAccessToken(storedToken)
 	assert.NoError(t, err)
 	assert.Equal(t, token.GetAccessToken(), accessToken)
 }
@@ -283,7 +283,7 @@ func TestWeChatClientDoWithInvalidTokenAndInvalidCredential(t *testing.T) {
 	})
 
 	cache := caches.NewDummyCache()
-	serializedToken, _ := auth.SerializeToken(auth.NewAccessToken(invalidToken, 3600))
+	serializedToken, _ := auth.SerializeAccessToken(auth.NewAccessToken(invalidToken, 3600))
 	cache.Set(appID, caches.BizAccessToken, serializedToken, 3600)
 	config := client.Config{
 		HttpClient: mc,
@@ -306,8 +306,8 @@ func TestWeChatClientGetAccessToken(t *testing.T) {
 	cache := caches.NewDummyCache()
 	atc := test.NewMockAccessTokenClient(oldToken)
 	config := client.Config{
-		CredentialManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
-			return client.NewWeChatAccessTokenCredentialManager(auth, cache, atc)
+		AccessTokenManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
+			return client.NewAccessTokenManager(atc, auth, cache)
 		},
 		Cache: cache,
 	}
@@ -319,8 +319,8 @@ func TestWeChatClientGetAccessToken(t *testing.T) {
 
 	atc = test.NewMockAccessTokenClient(newToken)
 	config = client.Config{
-		CredentialManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
-			return client.NewWeChatAccessTokenCredentialManager(auth, cache, atc)
+		AccessTokenManagerFactory: func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
+			return client.NewAccessTokenManager(atc, auth, cache)
 		},
 		Cache: cache,
 	}

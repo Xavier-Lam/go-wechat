@@ -8,5 +8,7 @@ type (
 )
 
 var (
-	ErrCacheNotSet = client.ErrCacheNotSet
+	// client
+	ErrCacheNotSet     = client.ErrCacheNotSet
+	ErrInvalidResponse = client.ErrInvalidResponse
 )

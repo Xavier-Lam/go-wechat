@@ -17,10 +17,10 @@ type App struct {
 
 func New(auth auth.Auth, conf Config) *App { // Set up base dependencies if not given
 	c := client.New(auth, client.Config{
-		CredentialManagerFactory: conf.CredentialManagerFactory,
-		BaseApiUrl:               conf.BaseApiUrl,
-		Cache:                    conf.Cache,
-		HttpClient:               conf.HttpClient,
+		AccessTokenManagerFactory: conf.AccessTokenManagerFactory,
+		BaseApiUrl:                conf.BaseApiUrl,
+		Cache:                     conf.Cache,
+		HttpClient:                conf.HttpClient,
 	})
 	a := apis.NewApis(c)
 	return &App{

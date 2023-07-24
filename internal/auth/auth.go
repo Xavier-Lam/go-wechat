@@ -14,8 +14,8 @@ type wechatAuth struct {
 	appSecret string
 }
 
-// NewAuth creates a new instance of Auth
-func NewAuth(appId string, appSecret string) Auth {
+// New creates a new instance of Auth
+func New(appId string, appSecret string) Auth {
 	return &wechatAuth{
 		appId:     appId,
 		appSecret: appSecret,

@@ -10,8 +10,6 @@ type Session struct {
 	OpenId     string `json:"openid"`
 	SessionKey string `json:"session_key"`
 	UnionId    string `json:"unionid"`
-	ErrCode    int    `json:"errcode"`
-	ErrMsg     string `json:"errmsg"`
 }
 
 type login struct {
@@ -46,5 +44,10 @@ func (api *login) JsCode2Session(code string) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if rv.OpenId == "" || rv.SessionKey == "" {
+		return nil, client.ErrInvalidResponse
+	}
+
 	return rv, nil
 }

@@ -15,15 +15,46 @@ const (
 	DefaultAccessTokenUri = "https://api.weixin.qq.com/cgi-bin/token"
 )
 
-var ErrCacheNotSet = errors.New("cache not set")
+// AccessTokenClient is an client to request the newest access token
+type AccessTokenClient interface {
+	GetAccessToken() (*auth.AccessToken, error)
+}
 
-type AccessTokenCredentialManager struct {
+// AccessTokenResponse represents the response data received from the server
+// for an access token request.
+type AccessTokenResponse interface {
+	GetAccessToken() string
+	GetExpiresIn() int
+}
+
+// AccessTokenManagerProvider is a factory function to create a `auth.CredentialManager`
+// for manage access token of a WeChat application
+type AccessTokenManagerProvider = func(
+	auth auth.Auth,
+	client http.Client,
+	cache caches.Cache,
+	accessTokenUrl *url.URL,
+) auth.CredentialManager
+
+// AccessTokenManager is an implement of the `auth.CredentialManager`
+// which is used to manage access token credentials.
+type AccessTokenManager struct {
 	atc   AccessTokenClient
 	auth  auth.Auth
 	cache caches.Cache
 }
 
-func (cm *AccessTokenCredentialManager) Get() (interface{}, error) {
+// NewAccessTokenManager creates a new instance of `auth.CredentialManager`
+// to manage access token credentials.
+func NewAccessTokenManager(atc AccessTokenClient, auth auth.Auth, cache caches.Cache) auth.CredentialManager {
+	return &AccessTokenManager{
+		atc:   atc,
+		auth:  auth,
+		cache: cache,
+	}
+}
+
+func (cm *AccessTokenManager) Get() (interface{}, error) {
 	cachedValue, err := cm.get()
 	if err == nil {
 		return cachedValue, nil
@@ -32,11 +63,11 @@ func (cm *AccessTokenCredentialManager) Get() (interface{}, error) {
 	return cm.Renew()
 }
 
-func (cm *AccessTokenCredentialManager) Set(credential interface{}) error {
+func (cm *AccessTokenManager) Set(credential interface{}) error {
 	return errors.New("not settable")
 }
 
-func (cm *AccessTokenCredentialManager) Renew() (interface{}, error) {
+func (cm *AccessTokenManager) Renew() (interface{}, error) {
 	cm.Delete()
 
 	// TODO: prevent concurrent fetching
@@ -48,7 +79,7 @@ func (cm *AccessTokenCredentialManager) Renew() (interface{}, error) {
 	if cm.cache == nil {
 		err = fmt.Errorf("cache is not set")
 	} else {
-		serializedToken, err := auth.SerializeToken(token)
+		serializedToken, err := auth.SerializeAccessToken(token)
 		if err != nil {
 			return nil, err
 		}
@@ -63,13 +94,12 @@ func (cm *AccessTokenCredentialManager) Renew() (interface{}, error) {
 	return token, err
 }
 
-func (cm *AccessTokenCredentialManager) Delete() error {
-	// TODO: prevent concurrent fetching
+func (cm *AccessTokenManager) Delete() error {
 	token, err := cm.get()
 	if err != nil {
 		return err
 	}
-	serializedToken, err := auth.SerializeToken(token)
+	serializedToken, err := auth.SerializeAccessToken(token)
 	if err != nil {
 		return err
 	}
@@ -80,7 +110,7 @@ func (cm *AccessTokenCredentialManager) Delete() error {
 	)
 }
 
-func (m *AccessTokenCredentialManager) get() (*auth.AccessToken, error) {
+func (m *AccessTokenManager) get() (*auth.AccessToken, error) {
 	if m.cache == nil {
 		return nil, ErrCacheNotSet
 	}
@@ -90,7 +120,7 @@ func (m *AccessTokenCredentialManager) get() (*auth.AccessToken, error) {
 		return nil, err
 	}
 
-	token, err := auth.DeserializeToken(cachedValue)
+	token, err := auth.DeserializeAccessToken(cachedValue)
 	if err != nil {
 		return nil, err
 	}
@@ -98,20 +128,9 @@ func (m *AccessTokenCredentialManager) get() (*auth.AccessToken, error) {
 	return token, nil
 }
 
-type AccessTokenCredentialManagerFactory = func(auth auth.Auth, client http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager
-
-func NewAccessTokenCredentialManager(auth auth.Auth, client http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
-	atc := NewAccessTokenClient(accessTokenUrl, auth, &client)
-	return &AccessTokenCredentialManager{
-		atc:   atc,
-		auth:  auth,
-		cache: cache,
-	}
-}
-
-type TokenResponse interface {
-	GetAccessToken() string
-	GetExpiresIn() int
+func AccessTokenManagerFactory(auth auth.Auth, client http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
+	atc := AccessTokenClientFactory(accessTokenUrl, auth, &client)
+	return NewAccessTokenManager(atc, auth, cache)
 }
 
 type tokenResponse struct {
@@ -127,39 +146,25 @@ func (t *tokenResponse) GetExpiresIn() int {
 	return t.ExpiresIn
 }
 
-type AccessTokenClient interface {
-	GetAccessToken() (*auth.AccessToken, error)
+type accessTokenClient struct {
+	client     *http.Client
+	requestUrl *url.URL // The url to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
+	dto        AccessTokenResponse
 }
 
-type TokenClient struct {
-	Client   *http.Client
-	Endpoint *url.URL // The endpoint to request a new token, default value is 'https://api.weixin.qq.com/cgi-bin/token'
-	DTO      TokenResponse
-}
-
-func NewAccessTokenClient(endpoint *url.URL, a auth.Auth, client *http.Client) AccessTokenClient {
-	if client == nil {
-		client = &http.Client{}
-	}
-	client.Transport =
-		NewCredentialRoundTripper(auth.NewAuthCredentialManager(a),
-			NewFetchAccessTokenRoundTripper(
-				NewCommonRoundTripper(nil, client.Transport)))
-
-	if endpoint == nil {
-		endpoint, _ = url.Parse(DefaultAccessTokenUri)
-	}
-
-	return &TokenClient{
-		Client:   client,
-		Endpoint: endpoint,
-		DTO:      &tokenResponse{},
+// NewAccessTokenClient creates the default access token client which is used to
+// request the latest access token from server
+func NewAccessTokenClient(client *http.Client, dto AccessTokenResponse, requestUrl *url.URL) AccessTokenClient {
+	return &accessTokenClient{
+		client:     client,
+		requestUrl: requestUrl,
+		dto:        &tokenResponse{},
 	}
 }
 
-func (c *TokenClient) GetAccessToken() (*auth.AccessToken, error) {
+func (c *accessTokenClient) GetAccessToken() (*auth.AccessToken, error) {
 	// Prepare request
-	req, err := http.NewRequest(http.MethodGet, c.Endpoint.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, c.requestUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -168,14 +173,16 @@ func (c *TokenClient) GetAccessToken() (*auth.AccessToken, error) {
 	req = req.WithContext(ctx)
 
 	// Send request
-	resp, err := c.Client.Do(req)
+	// Use `fetchAccessTokenRoundTripper` to set up request parameters
+	// TODO: to use a request maker instead of RoundTrippers to send request (too complicated)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	// Parse token
-	token := c.DTO
+	token := c.dto
 	err = GetJson(resp, token)
 	if err != nil {
 		return nil, fmt.Errorf("malformed access token response: %w", err)
@@ -186,4 +193,22 @@ func (c *TokenClient) GetAccessToken() (*auth.AccessToken, error) {
 
 	rv := auth.NewAccessToken(token.GetAccessToken(), token.GetExpiresIn())
 	return rv, nil
+}
+
+// AccessTokenClientFactory is a factory to creates the default access token client
+// to request the latest access token from server
+func AccessTokenClientFactory(requestUrl *url.URL, a auth.Auth, client *http.Client) AccessTokenClient {
+	if client == nil {
+		client = &http.Client{Transport: http.DefaultTransport}
+	}
+	client.Transport =
+		NewCredentialRoundTripper(auth.NewAuthCredentialManager(a),
+			NewFetchAccessTokenRoundTripper(
+				NewCommonRoundTripper(nil, client.Transport)))
+
+	if requestUrl == nil {
+		requestUrl, _ = url.Parse(DefaultAccessTokenUri)
+	}
+
+	return NewAccessTokenClient(client, &tokenResponse{}, requestUrl)
 }

@@ -10,15 +10,15 @@ var (
 	appID       = "mock-app-id"
 	appSecret   = "mock-app-secret"
 	accessToken = "mock-access-token"
-	mockAuth    = auth.NewAuth(appID, appSecret)
+	mockAuth    = auth.New(appID, appSecret)
 )
 
 func newMockOfficialAccount(handler test.RequestHandler) *officialaccount.App {
 	return officialaccount.New(
 		mockAuth,
 		officialaccount.Config{
-			CredentialManagerFactory: test.MockAccessTokenCredentialManagerFactoryProvider(accessToken),
-			HttpClient:               test.NewMockHttpClient(handler),
+			AccessTokenManagerFactory: test.MockAccessTokenCredentialManagerFactoryProvider(accessToken),
+			HttpClient:                test.NewMockHttpClient(handler),
 		},
 	)
 }

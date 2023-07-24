@@ -28,7 +28,7 @@ func TestTokenGetAccessToken(t *testing.T) {
 		return test.Responses.Json(`{"access_token": "access-token", "expires_in": 7200}`)
 	})
 	url, _ := url.Parse(client.DefaultAccessTokenUri)
-	c := client.NewAccessTokenClient(url, a, httpClient)
+	c := client.AccessTokenClientFactory(url, a, httpClient)
 
 	token, err := c.GetAccessToken()
 
@@ -43,16 +43,16 @@ func TestWeChatAccessTokenCredential(t *testing.T) {
 	newToken := "token"
 
 	cache := caches.NewDummyCache()
-	akc := test.NewMockAccessTokenClient(oldToken)
-	cm := client.NewWeChatAccessTokenCredentialManager(mockAuth, cache, akc)
+	atc := test.NewMockAccessTokenClient(oldToken)
+	cm := client.NewAccessTokenManager(atc, mockAuth, cache)
 
 	token, err := cm.Get()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
 	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
 
-	akc = test.NewMockAccessTokenClient(newToken)
-	cm = client.NewWeChatAccessTokenCredentialManager(mockAuth, cache, akc)
+	atc = test.NewMockAccessTokenClient(newToken)
+	cm = client.NewAccessTokenManager(atc, mockAuth, cache)
 
 	token, err = cm.Get()
 	assert.NoError(t, err)
@@ -75,8 +75,8 @@ func TestWeChatAccessTokenCredentialDelete(t *testing.T) {
 	newToken := "token"
 
 	cache := caches.NewDummyCache()
-	akc := test.NewMockAccessTokenClient(oldToken)
-	cm := client.NewWeChatAccessTokenCredentialManager(mockAuth, cache, akc)
+	atc := test.NewMockAccessTokenClient(oldToken)
+	cm := client.NewAccessTokenManager(atc, mockAuth, cache)
 
 	err := cm.Delete()
 	assert.Error(t, err)
@@ -86,8 +86,8 @@ func TestWeChatAccessTokenCredentialDelete(t *testing.T) {
 	assert.IsType(t, &auth.AccessToken{}, token)
 	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
 
-	akc = test.NewMockAccessTokenClient(newToken)
-	cm = client.NewWeChatAccessTokenCredentialManager(mockAuth, cache, akc)
+	atc = test.NewMockAccessTokenClient(newToken)
+	cm = client.NewAccessTokenManager(atc, mockAuth, cache)
 
 	err = cm.Delete()
 	assert.NoError(t, err)

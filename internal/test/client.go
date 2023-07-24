@@ -67,14 +67,14 @@ func (c *mockAccessTokenClient) GetAccessToken() (*auth.AccessToken, error) {
 }
 
 type mockAccessTokenCredentialManager struct {
-	client.AccessTokenCredentialManager
+	client.AccessTokenManager
 	token string
 }
 
-func MockAccessTokenCredentialManagerFactoryProvider(token string) client.AccessTokenCredentialManagerFactory {
+func MockAccessTokenCredentialManagerFactoryProvider(token string) client.AccessTokenManagerProvider {
 	return func(auth auth.Auth, c http.Client, cache caches.Cache, accessTokenUrl *url.URL) auth.CredentialManager {
 		return &mockAccessTokenCredentialManager{
-			client.AccessTokenCredentialManager{},
+			client.AccessTokenManager{},
 			token,
 		}
 	}

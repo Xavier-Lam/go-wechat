@@ -30,11 +30,11 @@ func TestTokenGetExpires(t *testing.T) {
 func TestTokenSerialize(t *testing.T) {
 	token := auth.NewAccessToken("access_token", 2)
 	// Serialize the token
-	bytes, err := auth.SerializeToken(token)
+	bytes, err := auth.SerializeAccessToken(token)
 	assert.NoError(t, err)
 
 	// Deserialize the bytes back into a token
-	deserializedToken, err := auth.DeserializeToken(bytes)
+	deserializedToken, err := auth.DeserializeAccessToken(bytes)
 	assert.NoError(t, err)
 
 	assert.Equal(t, token.GetAccessToken(), deserializedToken.GetAccessToken())
