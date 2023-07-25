@@ -48,10 +48,10 @@ type WeChatClient interface {
 
 // Config is a configuration struct used to set up a `client.WeChatClient`.
 type Config struct {
-	// AccessTokenManagerFactory is a factory function that creates a `CredentialManager` managing the access token.
+	// AccessTokenClient is used for request a latest access token when it is needed
 	// This option should be left as the default value (nil), unless you want to customize the client
 	// For example, if you want to request your access token from a different service than Tencent's.
-	AccessTokenManagerFactory AccessTokenManagerProvider
+	AccessTokenClient auth.AccessTokenClient
 
 	// BaseApiUrl is the base URL used for making API requests.
 	// If not provided, the default value is 'https://api.weixin.qq.com'.
@@ -87,11 +87,11 @@ type DefaultWeChatClient struct {
 }
 
 // Create a new `WeChatClient`
-func New(auth auth.Auth, conf Config) WeChatClient {
+func New(a auth.Auth, conf Config) WeChatClient {
 	var (
+		atc        auth.AccessTokenClient
 		baseApiUrl *url.URL
-		client     http.Client
-		factory    AccessTokenManagerProvider
+		baseClient http.Client
 	)
 
 	if conf.BaseApiUrl == nil {
@@ -101,28 +101,30 @@ func New(auth auth.Auth, conf Config) WeChatClient {
 	}
 
 	if conf.HttpClient == nil {
-		client = http.Client{Transport: http.DefaultTransport}
+		baseClient = http.Client{Transport: http.DefaultTransport}
 	} else {
-		client = *conf.HttpClient
+		baseClient = *conf.HttpClient
 	}
 
-	if conf.AccessTokenManagerFactory == nil {
-		factory = AccessTokenManagerFactory
+	if conf.AccessTokenClient == nil {
+		client := baseClient
+		atc = NewAccessTokenClient(&client, "")
 	} else {
-		factory = conf.AccessTokenManagerFactory
+		atc = conf.AccessTokenClient
 	}
-	cm := factory(auth, client, conf.Cache, nil)
 
-	client.Transport =
+	cm := auth.NewAccessTokenManager(atc, a, conf.Cache)
+
+	baseClient.Transport =
 		NewCredentialRoundTripper(cm,
 			NewAccessTokenRoundTripper(
 				NewCommonRoundTripper(
-					baseApiUrl, client.Transport)))
+					baseApiUrl, baseClient.Transport)))
 
 	return &DefaultWeChatClient{
 		cm:     cm,
-		auth:   auth,
-		client: &client,
+		auth:   a,
+		client: &baseClient,
 	}
 }
 

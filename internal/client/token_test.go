@@ -2,98 +2,64 @@ package client_test
 
 import (
 	"net/http"
-	"net/url"
 	"testing"
-	"time"
 
-	"github.com/Xavier-Lam/go-wechat"
-	"github.com/Xavier-Lam/go-wechat/caches"
-	"github.com/Xavier-Lam/go-wechat/internal/auth"
 	"github.com/Xavier-Lam/go-wechat/internal/client"
 	"github.com/Xavier-Lam/go-wechat/internal/test"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTokenGetAccessToken(t *testing.T) {
-	a := wechat.NewAuth("app-id", "app-secret")
+func TestPrepareRequest(t *testing.T) {
+	c := client.NewAccessTokenClient(nil, "")
 
+	req, err := c.PrepareRequest(mockAuth)
+	assert.NoError(t, err)
+	assert.Equal(t, "GET", req.Method)
+	test.AssertEndpointEqual(t, client.DefaultAccessTokenUrl, req.URL)
+	assert.Equal(t, "client_credential", req.URL.Query().Get("grant_type"))
+	assert.Equal(t, appID, req.URL.Query().Get("appid"))
+	assert.Equal(t, appSecret, req.URL.Query().Get("secret"))
+
+	requestUrl := "https://example.com/test"
+	c = client.NewAccessTokenClient(nil, requestUrl)
+
+	req, err = c.PrepareRequest(mockAuth)
+	assert.NoError(t, err)
+	assert.Equal(t, "GET", req.Method)
+	test.AssertEndpointEqual(t, requestUrl, req.URL)
+	assert.Equal(t, "client_credential", req.URL.Query().Get("grant_type"))
+	assert.Equal(t, appID, req.URL.Query().Get("appid"))
+	assert.Equal(t, appSecret, req.URL.Query().Get("secret"))
+}
+
+func TestSendRequest(t *testing.T) {
 	httpClient := test.NewMockHttpClient(func(req *http.Request, calls int) (*http.Response, error) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, "GET", req.Method)
-		test.AssertEndpointEqual(t, client.DefaultAccessTokenUri, req.URL)
+		test.AssertEndpointEqual(t, client.DefaultAccessTokenUrl, req.URL)
 		assert.Equal(t, "client_credential", req.URL.Query().Get("grant_type"))
-		assert.Equal(t, "app-id", req.URL.Query().Get("appid"))
-		assert.Equal(t, "app-secret", req.URL.Query().Get("secret"))
+		assert.Equal(t, appID, req.URL.Query().Get("appid"))
+		assert.Equal(t, appSecret, req.URL.Query().Get("secret"))
 
-		return test.Responses.Json(`{"access_token": "access-token", "expires_in": 7200}`)
+		return test.Responses.Empty()
 	})
-	url, _ := url.Parse(client.DefaultAccessTokenUri)
-	c := client.AccessTokenClientFactory(url, a, httpClient)
+	c := client.NewAccessTokenClient(httpClient, "")
 
-	token, err := c.GetAccessToken()
+	req, err := c.PrepareRequest(mockAuth)
+	assert.NoError(t, err)
+	resp, err := c.SendRequest(mockAuth, req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, emptyResponse, resp)
+}
+
+func TestHandleResponse(t *testing.T) {
+	resp, _ := test.Responses.Json(`{"access_token": "access-token", "expires_in": 7200}`)
+	client := client.NewAccessTokenClient(nil, "")
+
+	token, err := client.HandleResponse(mockAuth, resp, &http.Request{})
 
 	assert.NoError(t, err)
 	assert.Equal(t, "access-token", token.GetAccessToken())
 	assert.Equal(t, 7200, token.GetExpiresIn())
-	assert.WithinDuration(t, time.Now().Add(time.Second*7200), token.GetExpiresAt(), time.Millisecond*50)
-}
-
-func TestWeChatAccessTokenCredential(t *testing.T) {
-	oldToken := "old"
-	newToken := "token"
-
-	cache := caches.NewDummyCache()
-	atc := test.NewMockAccessTokenClient(oldToken)
-	cm := client.NewAccessTokenManager(atc, mockAuth, cache)
-
-	token, err := cm.Get()
-	assert.NoError(t, err)
-	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
-
-	atc = test.NewMockAccessTokenClient(newToken)
-	cm = client.NewAccessTokenManager(atc, mockAuth, cache)
-
-	token, err = cm.Get()
-	assert.NoError(t, err)
-	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
-
-	token, err = cm.Renew()
-	assert.NoError(t, err)
-	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, newToken, token.(*auth.AccessToken).GetAccessToken())
-
-	token, err = cm.Get()
-	assert.NoError(t, err)
-	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, newToken, token.(*auth.AccessToken).GetAccessToken())
-}
-
-func TestWeChatAccessTokenCredentialDelete(t *testing.T) {
-	oldToken := "old"
-	newToken := "token"
-
-	cache := caches.NewDummyCache()
-	atc := test.NewMockAccessTokenClient(oldToken)
-	cm := client.NewAccessTokenManager(atc, mockAuth, cache)
-
-	err := cm.Delete()
-	assert.Error(t, err)
-
-	token, err := cm.Get()
-	assert.NoError(t, err)
-	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
-
-	atc = test.NewMockAccessTokenClient(newToken)
-	cm = client.NewAccessTokenManager(atc, mockAuth, cache)
-
-	err = cm.Delete()
-	assert.NoError(t, err)
-
-	token, err = cm.Get()
-	assert.NoError(t, err)
-	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, newToken, token.(*auth.AccessToken).GetAccessToken())
 }

@@ -17,8 +17,8 @@ func newMockMiniProgram(handler test.RequestHandler) *miniprogram.App {
 	return miniprogram.New(
 		mockAuth,
 		miniprogram.Config{
-			AccessTokenManagerFactory: test.MockAccessTokenCredentialManagerFactoryProvider(accessToken),
-			HttpClient:                test.NewMockHttpClient(handler),
+			AccessTokenClient: test.NewMockAccessTokenClient(accessToken),
+			HttpClient:        test.NewMockHttpClient(handler),
 		},
 	)
 }

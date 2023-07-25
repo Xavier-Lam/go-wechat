@@ -17,8 +17,8 @@ func newMockOfficialAccount(handler test.RequestHandler) *officialaccount.App {
 	return officialaccount.New(
 		mockAuth,
 		officialaccount.Config{
-			AccessTokenManagerFactory: test.MockAccessTokenCredentialManagerFactoryProvider(accessToken),
-			HttpClient:                test.NewMockHttpClient(handler),
+			AccessTokenClient: test.NewMockAccessTokenClient(accessToken),
+			HttpClient:        test.NewMockHttpClient(handler),
 		},
 	)
 }
