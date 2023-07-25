@@ -82,7 +82,7 @@ func (e WeChatApiError) Error() string {
 
 type DefaultWeChatClient struct {
 	auth   auth.Auth
-	cm     auth.CredentialManager
+	cm     auth.AccessTokenManager
 	client *http.Client
 }
 
@@ -166,17 +166,9 @@ func (c *DefaultWeChatClient) GetAuth() auth.Auth {
 }
 
 func (c *DefaultWeChatClient) GetAccessToken() (*auth.AccessToken, error) {
-	token, err := c.cm.Get()
-	if token != nil {
-		return token.(*auth.AccessToken), err
-	}
-	return nil, err
+	return c.cm.Get()
 }
 
 func (c *DefaultWeChatClient) FetchAccessToken() (*auth.AccessToken, error) {
-	token, err := c.cm.Renew()
-	if token != nil {
-		return token.(*auth.AccessToken), err
-	}
-	return nil, err
+	return c.cm.Renew()
 }

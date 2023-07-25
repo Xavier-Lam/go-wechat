@@ -62,20 +62,20 @@ func (rt *commonRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	return resp, nil
 }
 
-type credentialRoundTripper struct {
-	cm   auth.CredentialManager
+type credentialRoundTripper[T interface{}] struct {
+	cm   auth.CredentialManager[T]
 	next http.RoundTripper
 }
 
 // A round tripper for credential required requests
-func NewCredentialRoundTripper(cm auth.CredentialManager, next http.RoundTripper) http.RoundTripper {
-	return &credentialRoundTripper{
+func NewCredentialRoundTripper[T interface{}](cm auth.CredentialManager[T], next http.RoundTripper) http.RoundTripper {
+	return &credentialRoundTripper[T]{
 		cm:   cm,
 		next: next,
 	}
 }
 
-func (rt *credentialRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+func (rt *credentialRoundTripper[T]) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	req = rt.clearContext(req)
 	credentialRequired := req.Context().Value(RequestContextWithCredential) == true
 
@@ -95,17 +95,18 @@ func (rt *credentialRoundTripper) RoundTrip(req *http.Request) (resp *http.Respo
 	return
 }
 
-func (rt *credentialRoundTripper) clearContext(req *http.Request) *http.Request {
+func (rt *credentialRoundTripper[T]) clearContext(req *http.Request) *http.Request {
 	ctx := req.Context()
 	ctx = context.WithValue(ctx, RequestContextCredential, nil)
 	return req.WithContext(ctx)
 }
 
-func (rt *credentialRoundTripper) setUpCredential(req *http.Request, credential interface{}) (*http.Request, error) {
+func (rt *credentialRoundTripper[T]) setUpCredential(req *http.Request, credential interface{}) (*http.Request, error) {
+	var zero *T
 	var err error
 	if credential == nil {
 		credential, err = rt.cm.Get()
-		if credential == nil {
+		if credential == zero {
 			return nil, err
 		}
 	}
@@ -117,7 +118,9 @@ func (rt *credentialRoundTripper) setUpCredential(req *http.Request, credential 
 	return req, nil
 }
 
-func (rt *credentialRoundTripper) handleError(err error, req *http.Request) (*http.Response, error) {
+func (rt *credentialRoundTripper[T]) handleError(err error, req *http.Request) (*http.Response, error) {
+	var zero *T
+
 	shouldRetry, ok := err.(shouldRetry)
 	if !ok {
 		return nil, err
@@ -126,14 +129,14 @@ func (rt *credentialRoundTripper) handleError(err error, req *http.Request) (*ht
 	var credential interface{}
 	apiError := shouldRetry.err
 	credential, apiError.RetryError = rt.cm.Renew()
-	if credential != nil {
+	if credential != zero {
 		return rt.retry(req, credential)
 	}
 
 	return nil, apiError
 }
 
-func (rt *credentialRoundTripper) retry(req *http.Request, credential interface{}) (*http.Response, error) {
+func (rt *credentialRoundTripper[T]) retry(req *http.Request, credential interface{}) (*http.Response, error) {
 	ctx := req.Context()
 	ctx = context.WithValue(ctx, RequestContextCredential, credential)
 	req = req.WithContext(ctx)

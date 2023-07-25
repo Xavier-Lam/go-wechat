@@ -19,6 +19,9 @@ type AccessTokenClient interface {
 	HandleResponse(auth Auth, resp *http.Response, req *http.Request) (*AccessToken, error)
 }
 
+// AccessTokenManager is the credential manager to hold access token.
+type AccessTokenManager = CredentialManager[AccessToken]
+
 type AccessToken struct {
 	accessToken string
 	expiresIn   int
@@ -68,7 +71,7 @@ type accessTokenManager struct {
 
 // NewAccessTokenManager creates a new instance of `auth.CredentialManager`
 // to manage access token credentials.
-func NewAccessTokenManager(atc AccessTokenClient, auth Auth, cache caches.Cache) CredentialManager {
+func NewAccessTokenManager(atc AccessTokenClient, auth Auth, cache caches.Cache) AccessTokenManager {
 	return &accessTokenManager{
 		atc:   atc,
 		auth:  auth,
@@ -76,7 +79,7 @@ func NewAccessTokenManager(atc AccessTokenClient, auth Auth, cache caches.Cache)
 	}
 }
 
-func (cm *accessTokenManager) Get() (interface{}, error) {
+func (cm *accessTokenManager) Get() (*AccessToken, error) {
 	cachedValue, err := cm.get()
 	if err == nil {
 		return cachedValue, nil
@@ -85,11 +88,11 @@ func (cm *accessTokenManager) Get() (interface{}, error) {
 	return cm.Renew()
 }
 
-func (cm *accessTokenManager) Set(credential interface{}) error {
+func (cm *accessTokenManager) Set(credential *AccessToken) error {
 	return errors.New("not settable")
 }
 
-func (cm *accessTokenManager) Renew() (interface{}, error) {
+func (cm *accessTokenManager) Renew() (*AccessToken, error) {
 	cm.Delete()
 
 	// TODO: prevent concurrent fetching
@@ -167,7 +170,6 @@ func (cm *accessTokenManager) getAccessToken() (*AccessToken, error) {
 	return cm.atc.HandleResponse(cm.auth, resp, req)
 }
 
-// TODO: make private
 type accessToken struct {
 	AccessToken string    `json:"access_token"`
 	ExpiresIn   int       `json:"expires_in"`

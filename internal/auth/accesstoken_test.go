@@ -41,7 +41,7 @@ func TestAccessTokenManager(t *testing.T) {
 	token, err := cm.Get()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
+	assert.Equal(t, oldToken, token.GetAccessToken())
 
 	atc = test.NewMockAccessTokenClient(newToken)
 	cm = auth.NewAccessTokenManager(atc, mockAuth, cache)
@@ -49,17 +49,17 @@ func TestAccessTokenManager(t *testing.T) {
 	token, err = cm.Get()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
+	assert.Equal(t, oldToken, token.GetAccessToken())
 
 	token, err = cm.Renew()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, newToken, token.(*auth.AccessToken).GetAccessToken())
+	assert.Equal(t, newToken, token.GetAccessToken())
 
 	token, err = cm.Get()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, newToken, token.(*auth.AccessToken).GetAccessToken())
+	assert.Equal(t, newToken, token.GetAccessToken())
 }
 
 func TestAccessTokenManagerDelete(t *testing.T) {
@@ -77,7 +77,7 @@ func TestAccessTokenManagerDelete(t *testing.T) {
 	token, err := cm.Get()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, oldToken, token.(*auth.AccessToken).GetAccessToken())
+	assert.Equal(t, oldToken, token.GetAccessToken())
 
 	atc = test.NewMockAccessTokenClient(newToken)
 	cm = auth.NewAccessTokenManager(atc, mockAuth, cache)
@@ -88,7 +88,7 @@ func TestAccessTokenManagerDelete(t *testing.T) {
 	token, err = cm.Get()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
-	assert.Equal(t, newToken, token.(*auth.AccessToken).GetAccessToken())
+	assert.Equal(t, newToken, token.GetAccessToken())
 }
 
 func TestAccessTokenSerialize(t *testing.T) {

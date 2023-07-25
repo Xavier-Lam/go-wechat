@@ -1,15 +1,14 @@
 package auth
 
-// It would be much better if Go supports covariance...
-type CredentialManager interface {
+type CredentialManager[T interface{}] interface {
 	// Get the latest credential
-	Get() (interface{}, error)
+	Get() (*T, error)
 
 	// Set the latest credential
-	Set(credential interface{}) error
+	Set(credential *T) error
 
 	// Renew credential
-	Renew() (interface{}, error)
+	Renew() (*T, error)
 
 	// Delete a credential
 	Delete() error
