@@ -2,7 +2,6 @@ package auth
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
@@ -88,7 +87,7 @@ func (cm *accessTokenManager) Get() (*AccessToken, error) {
 }
 
 func (cm *accessTokenManager) Set(credential *AccessToken) error {
-	return errors.New("not settable")
+	return ErrNotSettable
 }
 
 func (cm *accessTokenManager) Renew() (*AccessToken, error) {

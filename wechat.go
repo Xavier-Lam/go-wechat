@@ -5,21 +5,24 @@ import (
 	"github.com/Xavier-Lam/go-wechat/internal/client"
 	"github.com/Xavier-Lam/go-wechat/internal/miniprogram"
 	"github.com/Xavier-Lam/go-wechat/internal/officialaccount"
+	"github.com/Xavier-Lam/go-wechat/internal/thirdpartyplatform"
 )
 
 // Exported interfaces
 type (
-	Auth              = auth.Auth
-	AccessTokenClient = auth.AccessTokenClient
-	WeChatClient      = client.WeChatClient
+	Auth                = auth.Auth
+	AccessTokenClient   = auth.AccessTokenClient
+	VeryfyTicketManager = thirdpartyplatform.VerifyTicketManager
+	WeChatClient        = client.WeChatClient
 )
 
 // Exported constructors
 var (
-	NewAuth          = auth.New
-	NewMiniProgram   = miniprogram.New
-	NewOfficeAccount = officialaccount.New
-	NewWeChatClient  = client.New
+	NewAuth               = auth.New
+	NewMiniProgram        = miniprogram.New
+	NewOfficeAccount      = officialaccount.New
+	NewThirdPartyPlatform = thirdpartyplatform.New
+	NewWeChatClient       = client.New
 
 	// less commonly used
 	NewAccessToken       = auth.NewAccessToken
@@ -28,9 +31,10 @@ var (
 
 // Exported configurations
 type (
-	MiniProgramConfig     = miniprogram.Config
-	OfficialAccountConfig = officialaccount.Config
-	WeChatClientConfig    = client.Config
+	MiniProgramConfig        = miniprogram.Config
+	OfficialAccountConfig    = officialaccount.Config
+	ThirdPartyPlatformConfig = thirdpartyplatform.Config
+	WeChatClientConfig       = client.Config
 )
 
 // Exported functions

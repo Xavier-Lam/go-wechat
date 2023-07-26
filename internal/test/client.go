@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	AppId       = "mock-app-id"
+	AppSecret   = "mock-app-secret"
+	AccessToken = "mock-access-token"
+)
+
 type RequestHandler func(req *http.Request, calls int) (*http.Response, error)
 
 type mockHttpClient struct {
@@ -51,6 +57,10 @@ func AssertEndpointEqual(t *testing.T, expected string, actual *url.URL) {
 	assert.Equal(t, uri.Host, actual.Host)
 	assert.Equal(t, uri.Path, actual.Path)
 }
+
+var (
+	MockAuth = auth.New(AppId, AppSecret)
+)
 
 type mockAccessTokenClient struct {
 	token string
