@@ -64,7 +64,7 @@ func (j *js) FetchTicket() (string, error) {
 	}
 
 	if j.cache == nil {
-		err = fmt.Errorf("cache is not set")
+		err = caches.ErrCacheNotSet
 	} else {
 		err = j.cache.Set(
 			j.auth.GetAppId(),
@@ -77,7 +77,7 @@ func (j *js) FetchTicket() (string, error) {
 	return ticket.Ticket, err
 }
 
-func (j *js) GetJsConfig(url string, c JsConfig) (JsConfig, error) {
+func (j *js) GetJsConfig(url string, c JsConfig) (*JsConfig, error) {
 	var err error
 	c.AppId = j.auth.GetAppId()
 	if c.NonceStr == "" {
@@ -91,10 +91,10 @@ func (j *js) GetJsConfig(url string, c JsConfig) (JsConfig, error) {
 	}
 	c.Signature, err = j.Sign(url, c.NonceStr, c.Timestamp)
 	if err != nil {
-		return JsConfig{}, err
+		return nil, err
 	}
 
-	return c, nil
+	return &c, nil
 }
 
 func (j *js) Sign(url string, nonceStr string, timestamp int) (string, error) {

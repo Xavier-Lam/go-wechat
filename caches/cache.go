@@ -13,6 +13,7 @@ var (
 	ErrKeyExisted      = errors.New("key existed in cache")
 	ErrKeyNotFound     = errors.New("key not found in cache")
 	ErrValueNotMatched = errors.New("value not matched")
+	ErrCacheNotSet     = errors.New("cache not set")
 )
 
 type Cache interface {

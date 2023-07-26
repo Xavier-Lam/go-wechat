@@ -3,7 +3,6 @@ package auth
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -102,7 +101,7 @@ func (cm *accessTokenManager) Renew() (*AccessToken, error) {
 	}
 
 	if cm.cache == nil {
-		err = fmt.Errorf("cache is not set")
+		err = caches.ErrCacheNotSet
 	} else {
 		serializedToken, err := SerializeAccessToken(token)
 		if err != nil {
@@ -137,7 +136,7 @@ func (cm *accessTokenManager) Delete() error {
 
 func (cm *accessTokenManager) get() (*AccessToken, error) {
 	if cm.cache == nil {
-		return nil, ErrCacheNotSet
+		return nil, caches.ErrCacheNotSet
 	}
 
 	cachedValue, err := cm.cache.Get(cm.auth.GetAppId(), caches.BizAccessToken)

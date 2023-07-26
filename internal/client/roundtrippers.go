@@ -193,35 +193,3 @@ func (rt *accessTokenRoundTripper) handleError(err error, req *http.Request) (*h
 
 	return nil, err
 }
-
-type fetchAccessTokenRoundTripper struct {
-	next http.RoundTripper
-}
-
-// A round tripper to get the latest access token
-func NewFetchAccessTokenRoundTripper(next http.RoundTripper) http.RoundTripper {
-	return &fetchAccessTokenRoundTripper{
-		next: next,
-	}
-}
-
-func (rt *fetchAccessTokenRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	credentialRequired := req.Context().Value(RequestContextWithCredential) == true
-
-	if credentialRequired {
-		tokenValue := req.Context().Value(RequestContextCredential)
-		auth, ok := tokenValue.(auth.Auth)
-		if !ok {
-			return nil, errors.New("corrupted auth")
-		}
-
-		query := url.Values{
-			"grant_type": {"client_credential"},
-			"appid":      {auth.GetAppId()},
-			"secret":     {auth.GetAppSecret()},
-		}
-		req.URL.RawQuery = query.Encode()
-	}
-
-	return rt.next.RoundTrip(req)
-}
