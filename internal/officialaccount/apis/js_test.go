@@ -20,7 +20,7 @@ func TestJsGetTicket(t *testing.T) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, "GET", req.Method)
 		test.AssertEndpointEqual(t, "https://api.weixin.qq.com/cgi-bin/ticket/getticket", req.URL)
-		assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
+		assert.Equal(t, test.AccessToken, req.URL.Query().Get("access_token"))
 		assert.Equal(t, "wx_card", req.URL.Query().Get("type"))
 
 		return test.Responses.Json(data)

@@ -1,4 +1,4 @@
-package main
+package examples
 
 import (
 	"fmt"
@@ -8,7 +8,9 @@ import (
 	"github.com/Xavier-Lam/go-wechat/caches"
 )
 
-func main() {
+// Get miniprogram session
+// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
+func GetSession() {
 	var (
 		appId     = os.Getenv("WECHAT_APP_ID")
 		appSecret = os.Getenv("WECHAT_APP_SECRET")
@@ -22,6 +24,8 @@ func main() {
 	app := wechat.NewMiniProgram(auth, conf)
 	session, err := app.JsCode2Session(code)
 	if err == nil {
-		fmt.Println(session)
+		fmt.Println(session.OpenId)
+		fmt.Println(session.SessionKey)
+		fmt.Println(session.UnionId)
 	}
 }

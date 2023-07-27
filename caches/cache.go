@@ -4,9 +4,6 @@ import "errors"
 
 const (
 	DefaultKeyPrefix = "wx:"
-
-	BizAccessToken = "ak"
-	BizJSTicket    = "js_ticket"
 )
 
 var (

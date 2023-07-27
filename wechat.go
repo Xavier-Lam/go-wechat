@@ -11,9 +11,12 @@ import (
 // Exported interfaces
 type (
 	Auth                = auth.Auth
-	AccessTokenClient   = auth.AccessTokenClient
 	VeryfyTicketManager = thirdpartyplatform.VerifyTicketManager
 	WeChatClient        = client.WeChatClient
+)
+
+type (
+	AccessToken = auth.AccessToken
 )
 
 // Exported constructors
@@ -25,8 +28,7 @@ var (
 	NewWeChatClient       = client.New
 
 	// less commonly used
-	NewAccessToken       = auth.NewAccessToken
-	NewAccessTokenClient = client.NewAccessTokenClient
+	NewAccessToken = auth.NewAccessToken
 )
 
 // Exported configurations

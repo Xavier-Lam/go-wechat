@@ -29,7 +29,7 @@ func TestUserGetInfo(t *testing.T) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, "GET", req.Method)
 		test.AssertEndpointEqual(t, "https://api.weixin.qq.com/cgi-bin/user/info", req.URL)
-		assert.Equal(t, accessToken, req.URL.Query().Get("access_token"))
+		assert.Equal(t, test.AccessToken, req.URL.Query().Get("access_token"))
 		assert.Equal(t, openid, req.URL.Query().Get("openid"))
 		assert.Equal(t, lang, req.URL.Query().Get("lang"))
 

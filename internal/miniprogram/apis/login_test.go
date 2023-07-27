@@ -21,8 +21,8 @@ func TestLoginJsCode2Session(t *testing.T) {
 		assert.Equal(t, 1, calls)
 		assert.Equal(t, "GET", req.Method)
 		test.AssertEndpointEqual(t, "https://api.weixin.qq.com/sns/jscode2session", req.URL)
-		assert.Equal(t, appID, req.URL.Query().Get("appid"))
-		assert.Equal(t, appSecret, req.URL.Query().Get("secret"))
+		assert.Equal(t, test.AppId, req.URL.Query().Get("appid"))
+		assert.Equal(t, test.AppSecret, req.URL.Query().Get("secret"))
 		assert.Equal(t, "TEST_CODE", req.URL.Query().Get("js_code"))
 		assert.Equal(t, "authorization_code", req.URL.Query().Get("grant_type"))
 

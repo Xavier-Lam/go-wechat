@@ -163,6 +163,10 @@ func (rt *accessTokenRoundTripper) RoundTrip(req *http.Request) (resp *http.Resp
 			return nil, errors.New("corrupted token")
 		}
 
+		if token.GetAccessToken() == "" {
+			return nil, errors.New("corrupted token")
+		}
+
 		query := req.URL.Query()
 		query.Set("access_token", token.GetAccessToken())
 		req.URL.RawQuery = query.Encode()

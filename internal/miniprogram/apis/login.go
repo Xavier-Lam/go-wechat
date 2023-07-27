@@ -16,11 +16,11 @@ type login struct {
 	c client.WeChatClient
 }
 
-// User management
-// https://developers.weixin.qq.com/doc/offiaccount/User_Management/User_Tag_Management.html
+// Login
+// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
 type Login interface {
-	// Obtaining Users' Basic Information
-	// https://developers.weixin.qq.com/doc/offiaccount/User_Management/Get_users_basic_information_UnionID.html#UinonId
+	// Get miniprogram session
+	// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
 	JsCode2Session(code string) (*Session, error)
 }
 

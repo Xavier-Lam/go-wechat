@@ -17,10 +17,11 @@ type App struct {
 
 func New(auth auth.Auth, conf Config) *App { // Set up base dependencies if not given
 	c := client.New(auth, client.Config{
-		AccessTokenClient: conf.AccessTokenClient,
-		BaseApiUrl:        conf.BaseApiUrl,
-		Cache:             conf.Cache,
-		HttpClient:        conf.HttpClient,
+		AccessTokenFetcher: conf.AccessTokenFetcher,
+		AccessTokenUrl:     conf.AccessTokenUrl,
+		BaseApiUrl:         conf.BaseApiUrl,
+		Cache:              conf.Cache,
+		HttpClient:         conf.HttpClient,
 	})
 	a := apis.NewApis(c)
 	return &App{
@@ -28,10 +29,10 @@ func New(auth auth.Auth, conf Config) *App { // Set up base dependencies if not 
 	}
 }
 
-func (a *App) JsCode2Session(code string) (*apis.Session, error) {
-	return a.Apis.Login.JsCode2Session(code)
-}
-
 func (a *App) GetAccessToken() (*auth.AccessToken, error) {
 	return a.Apis.GetAccessToken()
+}
+
+func (a *App) JsCode2Session(code string) (*apis.Session, error) {
+	return a.Apis.Login.JsCode2Session(code)
 }

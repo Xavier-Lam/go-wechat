@@ -11,6 +11,10 @@ import (
 	"github.com/Xavier-Lam/go-wechat/internal/officialaccount/apis"
 )
 
+const (
+	BizJSTicket = "js_ticket"
+)
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
@@ -43,7 +47,7 @@ func newJs(auth auth.Auth, api apis.Js, cache caches.Cache) *js {
 // https://developers.weixin.qq.com/doc/offiaccount/OA_Web_Apps/JS-SDK.html#54
 func (j *js) GetTicket() (string, error) {
 	if j.cache != nil {
-		cachedValue, err := j.cache.Get(j.auth.GetAppId(), caches.BizJSTicket)
+		cachedValue, err := j.cache.Get(j.auth.GetAppId(), BizJSTicket)
 		if err == nil {
 			if ticket := string(cachedValue); ticket != "" {
 				return ticket, nil
@@ -68,7 +72,7 @@ func (j *js) FetchTicket() (string, error) {
 	} else {
 		err = j.cache.Set(
 			j.auth.GetAppId(),
-			caches.BizJSTicket,
+			BizJSTicket,
 			[]byte(ticket.Ticket),
 			ticket.ExpiresIn,
 		)

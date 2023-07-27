@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var mockAccessTokenFetcher = func(token string) func() (*auth.AccessToken, error) {
+	return func() (*auth.AccessToken, error) {
+		return auth.NewAccessToken(token, 0), nil
+	}
+}
+
 func TestAccessTokenGetExpires(t *testing.T) {
 	token := auth.NewAccessToken("access_token", 2)
 
@@ -30,21 +36,18 @@ func TestAccessTokenGetExpires(t *testing.T) {
 }
 
 func TestAccessTokenManager(t *testing.T) {
-	mockAuth := auth.New("", "")
 	oldToken := "old"
 	newToken := "token"
 
 	cache := caches.NewDummyCache()
-	atc := test.NewMockAccessTokenClient(oldToken)
-	cm := auth.NewAccessTokenManager(atc, mockAuth, cache)
+	cm := auth.NewAccessTokenManager(test.MockAuth, cache, mockAccessTokenFetcher(oldToken))
 
 	token, err := cm.Get()
 	assert.NoError(t, err)
 	assert.IsType(t, &auth.AccessToken{}, token)
 	assert.Equal(t, oldToken, token.GetAccessToken())
 
-	atc = test.NewMockAccessTokenClient(newToken)
-	cm = auth.NewAccessTokenManager(atc, mockAuth, cache)
+	cm = auth.NewAccessTokenManager(test.MockAuth, cache, mockAccessTokenFetcher(newToken))
 
 	token, err = cm.Get()
 	assert.NoError(t, err)
@@ -65,11 +68,9 @@ func TestAccessTokenManager(t *testing.T) {
 func TestAccessTokenManagerDelete(t *testing.T) {
 	oldToken := "old"
 	newToken := "token"
-	mockAuth := auth.New("", "")
 
 	cache := caches.NewDummyCache()
-	atc := test.NewMockAccessTokenClient(oldToken)
-	cm := auth.NewAccessTokenManager(atc, mockAuth, cache)
+	cm := auth.NewAccessTokenManager(test.MockAuth, cache, mockAccessTokenFetcher(oldToken))
 
 	err := cm.Delete()
 	assert.Error(t, err)
@@ -79,8 +80,7 @@ func TestAccessTokenManagerDelete(t *testing.T) {
 	assert.IsType(t, &auth.AccessToken{}, token)
 	assert.Equal(t, oldToken, token.GetAccessToken())
 
-	atc = test.NewMockAccessTokenClient(newToken)
-	cm = auth.NewAccessTokenManager(atc, mockAuth, cache)
+	cm = auth.NewAccessTokenManager(test.MockAuth, cache, mockAccessTokenFetcher(newToken))
 
 	err = cm.Delete()
 	assert.NoError(t, err)

@@ -1,0 +1,3 @@
+package thirdpartyplatform
+
+var ExportedAccessTokenFetcher = accessTokenFetcher

@@ -2,23 +2,21 @@ package auth
 
 import (
 	"encoding/json"
-	"net/http"
 	"time"
 
 	"github.com/Xavier-Lam/go-wechat/caches"
 )
 
-const DefaultAccessTokenExpiresIn = 7200
+const (
+	BizAccessToken = "ak"
 
-// AccessTokenClient is an client to request the newest access token
-type AccessTokenClient interface {
-	PrepareRequest(auth Auth) (*http.Request, error)
-	SendRequest(auth Auth, req *http.Request) (*http.Response, error)
-	HandleResponse(auth Auth, resp *http.Response, req *http.Request) (*AccessToken, error)
-}
+	DefaultAccessTokenExpiresIn = 7200
+)
 
 // AccessTokenManager is the credential manager to hold access token.
 type AccessTokenManager = CredentialManager[AccessToken]
+
+type accessTokenFetcher = func() (*AccessToken, error)
 
 type AccessToken struct {
 	accessToken string
@@ -62,18 +60,18 @@ func (t *AccessToken) GetExpiresAt() time.Time {
 // accessTokenManager is an implement of the `auth.CredentialManager`
 // which is used to manage access token credentials.
 type accessTokenManager struct {
-	atc   AccessTokenClient
 	auth  Auth
 	cache caches.Cache
+	fetch accessTokenFetcher
 }
 
 // NewAccessTokenManager creates a new instance of `auth.CredentialManager`
 // to manage access token credentials.
-func NewAccessTokenManager(atc AccessTokenClient, auth Auth, cache caches.Cache) AccessTokenManager {
+func NewAccessTokenManager(auth Auth, cache caches.Cache, fetcher accessTokenFetcher) AccessTokenManager {
 	return &accessTokenManager{
-		atc:   atc,
 		auth:  auth,
 		cache: cache,
+		fetch: fetcher,
 	}
 }
 
@@ -91,10 +89,14 @@ func (cm *accessTokenManager) Set(credential *AccessToken) error {
 }
 
 func (cm *accessTokenManager) Renew() (*AccessToken, error) {
+	if cm.fetch == nil {
+		return nil, ErrNotRenewable
+	}
+
 	cm.Delete()
 
 	// TODO: prevent concurrent fetching
-	token, err := cm.getAccessToken()
+	token, err := cm.fetch()
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +110,7 @@ func (cm *accessTokenManager) Renew() (*AccessToken, error) {
 		}
 		err = cm.cache.Set(
 			cm.auth.GetAppId(),
-			caches.BizAccessToken,
+			BizAccessToken,
 			serializedToken,
 			token.GetExpiresIn(),
 		)
@@ -128,7 +130,7 @@ func (cm *accessTokenManager) Delete() error {
 	}
 	return cm.cache.Delete(
 		cm.auth.GetAppId(),
-		caches.BizAccessToken,
+		BizAccessToken,
 		serializedToken,
 	)
 }
@@ -138,7 +140,7 @@ func (cm *accessTokenManager) get() (*AccessToken, error) {
 		return nil, caches.ErrCacheNotSet
 	}
 
-	cachedValue, err := cm.cache.Get(cm.auth.GetAppId(), caches.BizAccessToken)
+	cachedValue, err := cm.cache.Get(cm.auth.GetAppId(), BizAccessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -149,23 +151,6 @@ func (cm *accessTokenManager) get() (*AccessToken, error) {
 	}
 
 	return token, nil
-}
-
-func (cm *accessTokenManager) getAccessToken() (*AccessToken, error) {
-	req, err := cm.atc.PrepareRequest(cm.auth)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := cm.atc.SendRequest(cm.auth, req)
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return cm.atc.HandleResponse(cm.auth, resp, req)
 }
 
 type accessToken struct {
